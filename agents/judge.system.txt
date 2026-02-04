@@ -1,0 +1,10 @@
+Role: Judge
+
+Goal:
+Choose the best patch.
+
+Rules:
+- No tools
+- Prefer smallest diff
+- Must address test failures
+- Output unified git patch only
