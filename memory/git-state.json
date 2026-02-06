@@ -1,99 +1,100 @@
 {
+  "recentCommits": [
+    {
+      "author": "adam-wheater",
+      "hash": "2a79b03",
+      "message": "Copilot builders iteration 1 (normal)"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "f71d184",
+      "message": "Isolate vibe loop from CLI tool's memory and state"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "b99edc3",
+      "message": "Auto-restore stashed changes after rebase"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "5571ca4",
+      "message": "Auto-restore stashed changes after rebase"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "0a1c9ad",
+      "message": "Auto-restore stashed changes after rebase"
+    },
+    {
+      "author": "Adam Wheater",
+      "hash": "3f8361e",
+      "message": "folder moving"
+    },
+    {
+      "author": "Adam Wheater",
+      "hash": "97d667b",
+      "message": "move folders"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "f5f74f8",
+      "message": "Auto-save: End of iteration 1"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "475c903",
+      "message": "Merge branch 'ai-work'"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "ea02f62",
+      "message": "Auto-restore stashed changes after rebase"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "130f3e5",
+      "message": "Copilot review iteration 1"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "89eef41",
+      "message": "Copilot builders iteration 1 (normal)"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "96fe648",
+      "message": "Auto-restore stashed changes after rebase"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "4c9055e",
+      "message": "Auto-save: End of iteration 1"
+    },
+    {
+      "author": "adam-wheater",
+      "hash": "d7b18e4",
+      "message": "Merge branch 'ai-work'"
+    }
+  ],
+  "diffStat": null,
   "branch": "ai-work",
   "uncommitted": [
     {
-      "file": ".ai-metrics/ai-loop.log",
-      "status": "M"
+      "file": ".ai-metrics/",
+      "status": "??"
     },
     {
-      "file": ".ai-metrics/status.txt",
-      "status": "M"
-    }
-  ],
-  "recentCommits": [
-    {
-      "hash": "7e0ed7c",
-      "author": "adam-wheater",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "hash": "bfb8cfe",
-      "author": "adam-wheater",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "hash": "bff474f",
-      "author": "adam-wheater",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "hash": "f5f74f8",
-      "author": "adam-wheater",
-      "message": "Auto-save: End of iteration 1"
-    },
-    {
-      "hash": "475c903",
-      "author": "adam-wheater",
-      "message": "Merge branch 'ai-work'"
-    },
-    {
-      "hash": "ea02f62",
-      "author": "adam-wheater",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "hash": "130f3e5",
-      "author": "adam-wheater",
-      "message": "Copilot review iteration 1"
-    },
-    {
-      "hash": "89eef41",
-      "author": "adam-wheater",
-      "message": "Copilot builders iteration 1 (normal)"
-    },
-    {
-      "hash": "96fe648",
-      "author": "adam-wheater",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "hash": "4c9055e",
-      "author": "adam-wheater",
-      "message": "Auto-save: End of iteration 1"
-    },
-    {
-      "hash": "d7b18e4",
-      "author": "adam-wheater",
-      "message": "Merge branch 'ai-work'"
-    },
-    {
-      "hash": "c5f594f",
-      "author": "adam-wheater",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "hash": "be242a4",
-      "author": "adam-wheater",
-      "message": "Copilot review iteration 1"
-    },
-    {
-      "hash": "2dfe776",
-      "author": "adam-wheater",
-      "message": "Copilot builders iteration 1 (normal)"
-    },
-    {
-      "hash": "f9054bc",
-      "author": "adam-wheater",
-      "message": "Auto-restore stashed changes after rebase"
+      "file": "tests/tmp-logs/20260206-130931-071-test.log",
+      "status": "??"
     }
   ],
   "coChangePatterns": {
-    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 3,
-    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 8,
-    ".ai-metrics/ai-loop.log|memory/git-state.json": 5,
-    ".ai-metrics/status.txt|memory/git-state.json": 5,
-    ".ai-metrics/last.diff|.ai-metrics/status.txt": 3
+    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 2,
+    ".ai-metrics/ai-loop.log|memory/git-state.json": 4,
+    ".ai-metrics/status.txt|memory/git-state.json": 4,
+    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 6,
+    ".ai-metrics/last.diff|.ai-metrics/status.txt": 2,
+    "vibe/ai-autonomous-loop-macos-copilot.sh|vibe/CLAUDE.md": 2
   },
-  "diffStat": " 2 files changed, 4 insertions(+), 1 deletion(-)",
   "lastGoodCommit": ""
 }
