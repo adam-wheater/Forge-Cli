@@ -1,99 +1,99 @@
 {
-  "branch": "main",
-  "lastGoodCommit": "",
-  "uncommitted": [
-    {
-      "status": "M",
-      "file": ".ai-metrics/ai-loop.log"
-    },
-    {
-      "status": "M",
-      "file": ".ai-metrics/status.txt"
-    }
-  ],
   "recentCommits": [
     {
-      "author": "adam-wheater",
+      "hash": "96fe648",
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "4c9055e",
+      "message": "Auto-save: End of iteration 1",
+      "author": "adam-wheater"
+    },
+    {
       "hash": "d7b18e4",
-      "message": "Merge branch 'ai-work'"
+      "message": "Merge branch 'ai-work'",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "c5f594f",
-      "message": "Auto-restore stashed changes after rebase"
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "be242a4",
-      "message": "Copilot review iteration 1"
+      "message": "Copilot review iteration 1",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "2dfe776",
-      "message": "Copilot builders iteration 1 (normal)"
+      "message": "Copilot builders iteration 1 (normal)",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "f9054bc",
-      "message": "Auto-restore stashed changes after rebase"
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "9e7e611",
-      "message": "Auto-save: End of iteration 1"
+      "message": "Auto-save: End of iteration 1",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "98a7662",
-      "message": "Merge branch 'ai-work'"
+      "message": "Merge branch 'ai-work'",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "b6a1d3f",
-      "message": "Auto-restore stashed changes after rebase"
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "33f3c2d",
-      "message": "Copilot review iteration 1"
+      "message": "Copilot review iteration 1",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "9196996",
-      "message": "Copilot builders iteration 1 (normal)"
+      "message": "Copilot builders iteration 1 (normal)",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "352d143",
-      "message": "Auto-restore stashed changes after rebase"
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "0da9a5d",
-      "message": "Auto-save: End of iteration 1"
+      "message": "Auto-save: End of iteration 1",
+      "author": "adam-wheater"
     },
     {
-      "author": "adam-wheater",
       "hash": "3a26bf2",
-      "message": "Merge branch 'ai-work'"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "5ff0f67",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "60e01cb",
-      "message": "Copilot review iteration 1"
+      "message": "Merge branch 'ai-work'",
+      "author": "adam-wheater"
     }
   ],
-  "diffStat": " 2 files changed, 6 insertions(+), 1 deletion(-)",
+  "lastGoodCommit": "",
   "coChangePatterns": {
-    ".ai-metrics/ai-loop.log|memory/git-state.json": 6,
-    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 9,
-    ".ai-metrics/status.txt|memory/git-state.json": 6,
     ".ai-metrics/last.diff|.ai-metrics/status.txt": 3,
-    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 3
-  }
+    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 9,
+    ".ai-metrics/ai-loop.log|memory/git-state.json": 6,
+    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 3,
+    ".ai-metrics/status.txt|memory/git-state.json": 6
+  },
+  "diffStat": " 2 files changed, 4 insertions(+), 1 deletion(-)",
+  "branch": "ai-work",
+  "uncommitted": [
+    {
+      "file": ".ai-metrics/ai-loop.log",
+      "status": "M"
+    },
+    {
+      "file": ".ai-metrics/status.txt",
+      "status": "M"
+    }
+  ]
 }
