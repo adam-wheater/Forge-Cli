@@ -1,94 +1,17 @@
 {
-  "diffStat": " 2 files changed, 4 insertions(+), 1 deletion(-)",
-  "branch": "ai-work",
-  "lastGoodCommit": "",
   "coChangePatterns": {
+    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 3,
+    ".ai-metrics/status.txt|memory/git-state.json": 6,
     ".ai-metrics/last.diff|.ai-metrics/status.txt": 3,
     ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 9,
+    ".ai-metrics/ai-loop.log|TODO.md": 2,
     ".ai-metrics/ai-loop.log|memory/git-state.json": 6,
-    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 3,
-    ".ai-metrics/last.diff|TODO.md": 3,
-    ".ai-metrics/status.txt|TODO.md": 3,
-    ".ai-metrics/status.txt|memory/git-state.json": 6,
-    ".ai-metrics/ai-loop.log|TODO.md": 3
+    ".ai-metrics/last.diff|TODO.md": 2,
+    ".ai-metrics/status.txt|TODO.md": 2
   },
-  "recentCommits": [
-    {
-      "author": "adam-wheater",
-      "hash": "85bc3eb",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "40dfe22",
-      "message": "Auto-save: End of iteration 1"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "5b89ed6",
-      "message": "Merge branch 'ai-work'"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "9e045cc",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "54c9b16",
-      "message": "Copilot review iteration 1"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "71b351c",
-      "message": "Copilot builders iteration 1 (normal)"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "92e9210",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "f3bc5e9",
-      "message": "Auto-save: End of iteration 1"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "d96bd4b",
-      "message": "Merge branch 'ai-work'"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "235991c",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "10ddc56",
-      "message": "Copilot review iteration 1"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "1c7da13",
-      "message": "Copilot builders iteration 1 (normal)"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "ab77d67",
-      "message": "Auto-restore stashed changes after rebase"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "a6805b9",
-      "message": "Auto-save: End of iteration 1"
-    },
-    {
-      "author": "adam-wheater",
-      "hash": "794ab0a",
-      "message": "Merge branch 'ai-work'"
-    }
-  ],
+  "branch": "main",
+  "lastGoodCommit": "",
+  "diffStat": " 2 files changed, 6 insertions(+), 1 deletion(-)",
   "uncommitted": [
     {
       "file": ".ai-metrics/ai-loop.log",
@@ -97,6 +20,83 @@
     {
       "file": ".ai-metrics/status.txt",
       "status": "M"
+    }
+  ],
+  "recentCommits": [
+    {
+      "message": "Merge branch 'ai-work'",
+      "author": "adam-wheater",
+      "hash": "3a26bf2"
+    },
+    {
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater",
+      "hash": "5ff0f67"
+    },
+    {
+      "message": "Copilot review iteration 1",
+      "author": "adam-wheater",
+      "hash": "60e01cb"
+    },
+    {
+      "message": "Copilot builders iteration 1 (normal)",
+      "author": "adam-wheater",
+      "hash": "5e1e606"
+    },
+    {
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater",
+      "hash": "85bc3eb"
+    },
+    {
+      "message": "Auto-save: End of iteration 1",
+      "author": "adam-wheater",
+      "hash": "40dfe22"
+    },
+    {
+      "message": "Merge branch 'ai-work'",
+      "author": "adam-wheater",
+      "hash": "5b89ed6"
+    },
+    {
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater",
+      "hash": "9e045cc"
+    },
+    {
+      "message": "Copilot review iteration 1",
+      "author": "adam-wheater",
+      "hash": "54c9b16"
+    },
+    {
+      "message": "Copilot builders iteration 1 (normal)",
+      "author": "adam-wheater",
+      "hash": "71b351c"
+    },
+    {
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater",
+      "hash": "92e9210"
+    },
+    {
+      "message": "Auto-save: End of iteration 1",
+      "author": "adam-wheater",
+      "hash": "f3bc5e9"
+    },
+    {
+      "message": "Merge branch 'ai-work'",
+      "author": "adam-wheater",
+      "hash": "d96bd4b"
+    },
+    {
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater",
+      "hash": "235991c"
+    },
+    {
+      "message": "Copilot review iteration 1",
+      "author": "adam-wheater",
+      "hash": "10ddc56"
     }
   ]
 }
