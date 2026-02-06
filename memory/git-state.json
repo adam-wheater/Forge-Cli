@@ -1,6 +1,25 @@
 {
-  "lastGoodCommit": "",
   "recentCommits": [
+    {
+      "message": "Merge branch 'ai-work'",
+      "hash": "5b89ed6",
+      "author": "adam-wheater"
+    },
+    {
+      "message": "Auto-restore stashed changes after rebase",
+      "hash": "9e045cc",
+      "author": "adam-wheater"
+    },
+    {
+      "message": "Copilot review iteration 1",
+      "hash": "54c9b16",
+      "author": "adam-wheater"
+    },
+    {
+      "message": "Copilot builders iteration 1 (normal)",
+      "hash": "71b351c",
+      "author": "adam-wheater"
+    },
     {
       "message": "Auto-restore stashed changes after rebase",
       "hash": "92e9210",
@@ -55,39 +74,8 @@
       "message": "Copilot review iteration 1",
       "hash": "712eb2d",
       "author": "adam-wheater"
-    },
-    {
-      "message": "Copilot builders iteration 1 (normal)",
-      "hash": "3eb4993",
-      "author": "adam-wheater"
-    },
-    {
-      "message": "Auto-restore stashed changes after rebase",
-      "hash": "1d016c7",
-      "author": "adam-wheater"
-    },
-    {
-      "message": "Auto-save: End of iteration 1",
-      "hash": "f88d759",
-      "author": "adam-wheater"
-    },
-    {
-      "message": "Merge branch 'ai-work'",
-      "hash": "6740cb5",
-      "author": "adam-wheater"
     }
   ],
-  "coChangePatterns": {
-    ".ai-metrics/status.txt|memory/git-state.json": 6,
-    ".ai-metrics/status.txt|TODO.md": 3,
-    ".ai-metrics/last.diff|.ai-metrics/status.txt": 3,
-    ".ai-metrics/last.diff|TODO.md": 3,
-    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 9,
-    ".ai-metrics/ai-loop.log|TODO.md": 3,
-    ".ai-metrics/ai-loop.log|memory/git-state.json": 6,
-    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 3
-  },
-  "branch": "ai-work",
   "uncommitted": [
     {
       "file": ".ai-metrics/ai-loop.log",
@@ -98,5 +86,17 @@
       "status": "M"
     }
   ],
-  "diffStat": " 2 files changed, 4 insertions(+), 1 deletion(-)"
+  "lastGoodCommit": "",
+  "coChangePatterns": {
+    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 9,
+    ".ai-metrics/status.txt|TODO.md": 3,
+    ".ai-metrics/last.diff|TODO.md": 3,
+    ".ai-metrics/last.diff|.ai-metrics/status.txt": 3,
+    ".ai-metrics/status.txt|memory/git-state.json": 6,
+    ".ai-metrics/ai-loop.log|memory/git-state.json": 6,
+    ".ai-metrics/ai-loop.log|TODO.md": 3,
+    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 3
+  },
+  "branch": "main",
+  "diffStat": " 2 files changed, 6 insertions(+), 1 deletion(-)"
 }
