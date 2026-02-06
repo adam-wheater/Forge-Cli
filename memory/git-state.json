@@ -9,30 +9,52 @@
       "file": ".ai-metrics/status.txt"
     }
   ],
-  "lastGoodCommit": "",
-  "coChangePatterns": {},
-  "branch": "ai-work",
-  "diffStat": " 2 files changed, 4 insertions(+), 1 deletion(-)",
   "recentCommits": [
     {
+      "hash": "ea2a776",
+      "author": "adam-wheater",
+      "message": "Merge branch 'ai-work'"
+    },
+    {
+      "hash": "d3a6dac",
+      "author": "adam-wheater",
+      "message": "Auto-restore stashed changes after rebase"
+    },
+    {
+      "hash": "d3bdffc",
+      "author": "adam-wheater",
+      "message": "Copilot review iteration 1"
+    },
+    {
+      "hash": "c8826cc",
+      "author": "adam-wheater",
+      "message": "Copilot builders iteration 1 (normal)"
+    },
+    {
       "hash": "168cfd4",
-      "message": "Auto-restore stashed changes after rebase",
-      "author": "adam-wheater"
+      "author": "adam-wheater",
+      "message": "Auto-restore stashed changes after rebase"
     },
     {
       "hash": "2c56da9",
-      "message": "Auto-restore stashed changes after rebase",
-      "author": "adam-wheater"
+      "author": "adam-wheater",
+      "message": "Auto-restore stashed changes after rebase"
     },
     {
       "hash": "07f1263",
-      "message": "Add autonomous AI agent system, memory module, and test infrastructure",
-      "author": "adam-wheater"
+      "author": "adam-wheater",
+      "message": "Add autonomous AI agent system, memory module, and test infrastructure"
     },
     {
       "hash": "c23564c",
-      "message": "Initial commit: AI-powered test generation CLI",
-      "author": "adam-wheater"
+      "author": "adam-wheater",
+      "message": "Initial commit: AI-powered test generation CLI"
     }
-  ]
+  ],
+  "coChangePatterns": {
+    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 2
+  },
+  "lastGoodCommit": "",
+  "diffStat": " 2 files changed, 6 insertions(+), 1 deletion(-)",
+  "branch": "main"
 }
