@@ -1,78 +1,78 @@
 diff --git a/.ai-metrics/ai-loop.log b/.ai-metrics/ai-loop.log
-index 2ca3893..2ffec67 100644
+index 7a951d0..82bebf3 100644
 --- a/.ai-metrics/ai-loop.log
 +++ b/.ai-metrics/ai-loop.log
-@@ -5705,3 +5705,70 @@ Dropped refs/stash@{0} (27de84bd004d80ca0d6c7784778161c57146f9d9)
- [2026-02-06 07:34:35] 📤 PUSH: SUCCESS
- [2026-02-06 07:34:35] 🔄 ITERATION 1: Completed (build=1 test=1)
- [2026-02-06 07:34:36] Safety commit/push before next iteration...
-+[2026-02-06 08:00:19] STATUS: Iteration 1 - Builders running
-+[2026-02-06 08:00:19] 🔨 BUILDERS: Starting 5 agents (Auditor, Builder A/B, Feature, Improver)
-+[2026-02-06 08:00:19] 🧠 MEMORY: Available: 6869MB, running 5 agents
-+[2026-02-06 08:00:21] Builders running in tmux session 'ai-loop' (detached)
-+[2026-02-06 08:00:21] Waiting for builders to complete (timeout: 1800s)...
-+[2026-02-06 08:00:51]   ⏳ Builders running... 30s elapsed, 5 panes active
-+[2026-02-06 08:01:21]   ⏳ Builders running... 60s elapsed, 5 panes active
-+[2026-02-06 08:01:52]   ⏳ Builders running... 91s elapsed, 5 panes active
-+[2026-02-06 08:02:22]   ⏳ Builders running... 121s elapsed, 5 panes active
-+[2026-02-06 08:02:52]   ⏳ Builders running... 151s elapsed, 5 panes active
-+[2026-02-06 08:03:23]   ⏳ Builders running... 182s elapsed, 5 panes active
-+[2026-02-06 08:03:53]   ⏳ Builders running... 212s elapsed, 5 panes active
-+[2026-02-06 08:04:23]   ⏳ Builders running... 242s elapsed, 5 panes active
-+[2026-02-06 08:04:54]   ⏳ Builders running... 273s elapsed, 5 panes active
-+[2026-02-06 08:05:24]   ⏳ Builders running... 303s elapsed, 5 panes active
-+[2026-02-06 08:05:54]   ⏳ Builders running... 333s elapsed, 5 panes active
-+[2026-02-06 08:06:25]   ⏳ Builders running... 364s elapsed, 5 panes active
-+[2026-02-06 08:06:55]   ⏳ Builders running... 394s elapsed, 5 panes active
-+[2026-02-06 08:07:25]   ⏳ Builders running... 424s elapsed, 5 panes active
-+[2026-02-06 08:07:55]   ⏳ Builders running... 454s elapsed, 5 panes active
-+[2026-02-06 08:08:26]   ⏳ Builders running... 485s elapsed, 5 panes active
-+[2026-02-06 08:08:56]   ⏳ Builders running... 515s elapsed, 5 panes active
-+[2026-02-06 08:09:26]   ⏳ Builders running... 545s elapsed, 5 panes active
-+[2026-02-06 08:09:57]   ⏳ Builders running... 576s elapsed, 5 panes active
-+[2026-02-06 08:10:27]   ⏳ Builders running... 606s elapsed, 5 panes active
-+[2026-02-06 08:10:57]   ⏳ Builders running... 636s elapsed, 5 panes active
-+[2026-02-06 08:11:28]   ⏳ Builders running... 667s elapsed, 5 panes active
-+[2026-02-06 08:11:58]   ⏳ Builders running... 697s elapsed, 5 panes active
-+[2026-02-06 08:12:28]   ⏳ Builders running... 727s elapsed, 5 panes active
-+[2026-02-06 08:12:58]   ⏳ Builders running... 757s elapsed, 5 panes active
-+[2026-02-06 08:13:29]   ⏳ Builders running... 788s elapsed, 5 panes active
-+[2026-02-06 08:13:59]   ⏳ Builders running... 818s elapsed, 5 panes active
-+[2026-02-06 08:14:29]   ⏳ Builders running... 848s elapsed, 5 panes active
-+[2026-02-06 08:15:00]   ⏳ Builders running... 879s elapsed, 5 panes active
-+[2026-02-06 08:15:30]   ⏳ Builders running... 909s elapsed, 5 panes active
-+[2026-02-06 08:16:00]   ⏳ Builders running... 939s elapsed, 5 panes active
-+[2026-02-06 08:16:31]   ⏳ Builders running... 970s elapsed, 5 panes active
-+[2026-02-06 08:17:01]   ⏳ Builders running... 1000s elapsed, 5 panes active
-+[2026-02-06 08:17:31]   ⏳ Builders running... 1030s elapsed, 5 panes active
-+[2026-02-06 08:18:01]   ⏳ Builders running... 1060s elapsed, 5 panes active
-+[2026-02-06 08:18:32]   ⏳ Builders running... 1091s elapsed, 5 panes active
-+[2026-02-06 08:19:02]   ⏳ Builders running... 1121s elapsed, 5 panes active
-+[2026-02-06 08:19:32]   ⏳ Builders running... 1151s elapsed, 5 panes active
-+[2026-02-06 08:20:03]   ⏳ Builders running... 1182s elapsed, 5 panes active
-+[2026-02-06 08:20:33]   ⏳ Builders running... 1212s elapsed, 5 panes active
-+[2026-02-06 08:21:03]   ⏳ Builders running... 1242s elapsed, 5 panes active
-+[2026-02-06 08:21:34]   ⏳ Builders running... 1273s elapsed, 5 panes active
-+[2026-02-06 08:22:04]   ⏳ Builders running... 1303s elapsed, 5 panes active
-+[2026-02-06 08:22:34]   ⏳ Builders running... 1333s elapsed, 5 panes active
-+[2026-02-06 08:23:04]   ⏳ Builders running... 1363s elapsed, 5 panes active
-+[2026-02-06 08:23:35]   ⏳ Builders running... 1394s elapsed, 5 panes active
-+[2026-02-06 08:24:05]   ⏳ Builders running... 1424s elapsed, 5 panes active
-+[2026-02-06 08:24:35]   ⏳ Builders running... 1454s elapsed, 5 panes active
-+[2026-02-06 08:25:06]   ⏳ Builders running... 1485s elapsed, 5 panes active
-+[2026-02-06 08:25:36]   ⏳ Builders running... 1515s elapsed, 5 panes active
-+[2026-02-06 08:26:06]   ⏳ Builders running... 1545s elapsed, 5 panes active
-+[2026-02-06 08:26:37]   ⏳ Builders running... 1576s elapsed, 5 panes active
-+[2026-02-06 08:27:07]   ⏳ Builders running... 1606s elapsed, 5 panes active
-+[2026-02-06 08:27:37]   ⏳ Builders running... 1636s elapsed, 5 panes active
-+[2026-02-06 08:28:07]   ⏳ Builders running... 1666s elapsed, 5 panes active
-+[2026-02-06 08:28:38]   ⏳ Builders running... 1697s elapsed, 5 panes active
-+[2026-02-06 08:29:08]   ⏳ Builders running... 1727s elapsed, 5 panes active
-+[2026-02-06 08:29:38]   ⏳ Builders running... 1757s elapsed, 5 panes active
-+[2026-02-06 08:30:09]   ⏳ Builders running... 1788s elapsed, 5 panes active
-+[2026-02-06 08:30:21] WARNING: tmux session 'ai-loop' exceeded 1800s; terminating.
-+[2026-02-06 08:30:21] Builders finished
-+[2026-02-06 08:30:21] 🔨 BUILDERS: Completed
+@@ -5784,3 +5784,70 @@ Dropped refs/stash@{0} (27de84bd004d80ca0d6c7784778161c57146f9d9)
+ [2026-02-06 08:31:45] 📤 PUSH: SUCCESS
+ [2026-02-06 08:31:45] 🔄 ITERATION 1: Completed (build=1 test=1)
+ [2026-02-06 08:31:46] Safety commit/push before next iteration...
++[2026-02-06 08:32:22] STATUS: Iteration 1 - Builders running
++[2026-02-06 08:32:22] 🔨 BUILDERS: Starting 5 agents (Auditor, Builder A/B, Feature, Improver)
++[2026-02-06 08:32:22] 🧠 MEMORY: Available: 6876MB, running 5 agents
++[2026-02-06 08:32:23] Builders running in tmux session 'ai-loop' (detached)
++[2026-02-06 08:32:23] Waiting for builders to complete (timeout: 1800s)...
++[2026-02-06 08:32:54]   ⏳ Builders running... 31s elapsed, 5 panes active
++[2026-02-06 08:33:24]   ⏳ Builders running... 61s elapsed, 5 panes active
++[2026-02-06 08:33:54]   ⏳ Builders running... 91s elapsed, 5 panes active
++[2026-02-06 08:34:25]   ⏳ Builders running... 122s elapsed, 5 panes active
++[2026-02-06 08:34:55]   ⏳ Builders running... 152s elapsed, 5 panes active
++[2026-02-06 08:35:25]   ⏳ Builders running... 182s elapsed, 5 panes active
++[2026-02-06 08:35:56]   ⏳ Builders running... 213s elapsed, 5 panes active
++[2026-02-06 08:36:26]   ⏳ Builders running... 243s elapsed, 5 panes active
++[2026-02-06 08:36:56]   ⏳ Builders running... 273s elapsed, 5 panes active
++[2026-02-06 08:37:27]   ⏳ Builders running... 304s elapsed, 5 panes active
++[2026-02-06 08:37:57]   ⏳ Builders running... 334s elapsed, 5 panes active
++[2026-02-06 08:38:27]   ⏳ Builders running... 364s elapsed, 5 panes active
++[2026-02-06 08:38:57]   ⏳ Builders running... 394s elapsed, 5 panes active
++[2026-02-06 08:39:28]   ⏳ Builders running... 425s elapsed, 5 panes active
++[2026-02-06 08:39:58]   ⏳ Builders running... 455s elapsed, 5 panes active
++[2026-02-06 08:40:28]   ⏳ Builders running... 485s elapsed, 5 panes active
++[2026-02-06 08:40:59]   ⏳ Builders running... 516s elapsed, 5 panes active
++[2026-02-06 08:41:29]   ⏳ Builders running... 546s elapsed, 5 panes active
++[2026-02-06 08:41:59]   ⏳ Builders running... 576s elapsed, 5 panes active
++[2026-02-06 08:42:30]   ⏳ Builders running... 607s elapsed, 5 panes active
++[2026-02-06 08:43:00]   ⏳ Builders running... 637s elapsed, 5 panes active
++[2026-02-06 08:43:30]   ⏳ Builders running... 667s elapsed, 5 panes active
++[2026-02-06 08:44:00]   ⏳ Builders running... 697s elapsed, 5 panes active
++[2026-02-06 08:44:31]   ⏳ Builders running... 728s elapsed, 5 panes active
++[2026-02-06 08:45:01]   ⏳ Builders running... 758s elapsed, 5 panes active
++[2026-02-06 08:45:31]   ⏳ Builders running... 788s elapsed, 5 panes active
++[2026-02-06 08:46:02]   ⏳ Builders running... 819s elapsed, 5 panes active
++[2026-02-06 08:46:32]   ⏳ Builders running... 849s elapsed, 5 panes active
++[2026-02-06 08:47:02]   ⏳ Builders running... 879s elapsed, 5 panes active
++[2026-02-06 08:47:32]   ⏳ Builders running... 909s elapsed, 5 panes active
++[2026-02-06 08:48:03]   ⏳ Builders running... 940s elapsed, 5 panes active
++[2026-02-06 08:48:33]   ⏳ Builders running... 970s elapsed, 5 panes active
++[2026-02-06 08:49:03]   ⏳ Builders running... 1000s elapsed, 5 panes active
++[2026-02-06 08:49:34]   ⏳ Builders running... 1031s elapsed, 5 panes active
++[2026-02-06 08:50:04]   ⏳ Builders running... 1061s elapsed, 5 panes active
++[2026-02-06 08:50:34]   ⏳ Builders running... 1091s elapsed, 5 panes active
++[2026-02-06 08:51:05]   ⏳ Builders running... 1122s elapsed, 5 panes active
++[2026-02-06 08:51:35]   ⏳ Builders running... 1152s elapsed, 5 panes active
++[2026-02-06 08:52:05]   ⏳ Builders running... 1182s elapsed, 5 panes active
++[2026-02-06 08:52:36]   ⏳ Builders running... 1213s elapsed, 5 panes active
++[2026-02-06 08:53:06]   ⏳ Builders running... 1243s elapsed, 5 panes active
++[2026-02-06 08:53:36]   ⏳ Builders running... 1273s elapsed, 5 panes active
++[2026-02-06 08:54:06]   ⏳ Builders running... 1303s elapsed, 5 panes active
++[2026-02-06 08:54:37]   ⏳ Builders running... 1334s elapsed, 5 panes active
++[2026-02-06 08:55:07]   ⏳ Builders running... 1364s elapsed, 5 panes active
++[2026-02-06 08:55:37]   ⏳ Builders running... 1394s elapsed, 5 panes active
++[2026-02-06 08:56:08]   ⏳ Builders running... 1425s elapsed, 5 panes active
++[2026-02-06 08:56:38]   ⏳ Builders running... 1455s elapsed, 5 panes active
++[2026-02-06 08:57:08]   ⏳ Builders running... 1485s elapsed, 5 panes active
++[2026-02-06 08:57:39]   ⏳ Builders running... 1516s elapsed, 5 panes active
++[2026-02-06 08:58:09]   ⏳ Builders running... 1546s elapsed, 5 panes active
++[2026-02-06 08:58:39]   ⏳ Builders running... 1576s elapsed, 5 panes active
++[2026-02-06 08:59:09]   ⏳ Builders running... 1606s elapsed, 5 panes active
++[2026-02-06 08:59:40]   ⏳ Builders running... 1637s elapsed, 5 panes active
++[2026-02-06 09:00:10]   ⏳ Builders running... 1667s elapsed, 5 panes active
++[2026-02-06 09:00:40]   ⏳ Builders running... 1697s elapsed, 5 panes active
++[2026-02-06 09:01:11]   ⏳ Builders running... 1728s elapsed, 5 panes active
++[2026-02-06 09:01:41]   ⏳ Builders running... 1758s elapsed, 5 panes active
++[2026-02-06 09:02:11]   ⏳ Builders running... 1788s elapsed, 5 panes active
++[2026-02-06 09:02:23] WARNING: tmux session 'ai-loop' exceeded 1800s; terminating.
++[2026-02-06 09:02:23] Builders finished
++[2026-02-06 09:02:23] 🔨 BUILDERS: Completed
 diff --git a/.ai-metrics/status.txt b/.ai-metrics/status.txt
 index 64c442e..9deda94 100644
 --- a/.ai-metrics/status.txt
@@ -81,100 +81,12 @@ index 64c442e..9deda94 100644
 -Iteration 1 - Pushing
 +Iteration 1 - Builders running
 diff --git a/memory/git-state.json b/memory/git-state.json
-index e8ebaa9..4f6524b 100644
+index 051d7d3..b74f0a6 100644
 --- a/memory/git-state.json
 +++ b/memory/git-state.json
-@@ -1,60 +1,82 @@
+@@ -1,99 +1,99 @@
  {
--  "uncommitted": [
-+  "branch": "ai-work",
-+  "lastGoodCommit": "",
 +  "diffStat": " 2 files changed, 4 insertions(+), 1 deletion(-)",
-+  "recentCommits": [
-     {
--      "status": "M",
--      "file": ".ai-metrics/ai-loop.log"
-+      "hash": "6492850",
-+      "message": "Auto-restore stashed changes after rebase",
-+      "author": "adam-wheater"
-     },
-     {
--      "status": "M",
--      "file": ".ai-metrics/status.txt"
--    }
--  ],
--  "recentCommits": [
-+      "hash": "0abff69",
-+      "message": "Auto-restore stashed changes after rebase",
-+      "author": "adam-wheater"
-+    },
-+    {
-+      "hash": "50edf98",
-+      "message": "Auto-restore stashed changes after rebase",
-+      "author": "adam-wheater"
-+    },
-+    {
-+      "hash": "6c4e171",
-+      "message": "Auto-save: End of iteration 1",
-+      "author": "adam-wheater"
-+    },
-     {
-       "hash": "ea2a776",
--      "author": "adam-wheater",
--      "message": "Merge branch 'ai-work'"
-+      "message": "Merge branch 'ai-work'",
-+      "author": "adam-wheater"
-     },
-     {
-       "hash": "d3a6dac",
--      "author": "adam-wheater",
--      "message": "Auto-restore stashed changes after rebase"
-+      "message": "Auto-restore stashed changes after rebase",
-+      "author": "adam-wheater"
-     },
-     {
-       "hash": "d3bdffc",
--      "author": "adam-wheater",
--      "message": "Copilot review iteration 1"
-+      "message": "Copilot review iteration 1",
-+      "author": "adam-wheater"
-     },
-     {
-       "hash": "c8826cc",
--      "author": "adam-wheater",
--      "message": "Copilot builders iteration 1 (normal)"
-+      "message": "Copilot builders iteration 1 (normal)",
-+      "author": "adam-wheater"
-     },
-     {
-       "hash": "168cfd4",
--      "author": "adam-wheater",
--      "message": "Auto-restore stashed changes after rebase"
-+      "message": "Auto-restore stashed changes after rebase",
-+      "author": "adam-wheater"
-     },
-     {
-       "hash": "2c56da9",
--      "author": "adam-wheater",
--      "message": "Auto-restore stashed changes after rebase"
-+      "message": "Auto-restore stashed changes after rebase",
-+      "author": "adam-wheater"
-     },
-     {
-       "hash": "07f1263",
--      "author": "adam-wheater",
--      "message": "Add autonomous AI agent system, memory module, and test infrastructure"
-+      "message": "Add autonomous AI agent system, memory module, and test infrastructure",
-+      "author": "adam-wheater"
-     },
-     {
-       "hash": "c23564c",
--      "author": "adam-wheater",
--      "message": "Initial commit: AI-powered test generation CLI"
-+      "message": "Initial commit: AI-powered test generation CLI",
-+      "author": "adam-wheater"
-+    }
-+  ],
 +  "uncommitted": [
 +    {
 +      "file": ".ai-metrics/ai-loop.log",
@@ -183,16 +95,147 @@ index e8ebaa9..4f6524b 100644
 +    {
 +      "file": ".ai-metrics/status.txt",
 +      "status": "M"
++    }
++  ],
++  "coChangePatterns": {
++    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 2,
++    ".ai-metrics/last.diff|.ai-metrics/status.txt": 2,
++    ".ai-metrics/status.txt|memory/git-state.json": 4,
++    ".ai-metrics/ai-loop.log|memory/git-state.json": 4,
++    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 6
++  },
++  "branch": "ai-work",
+   "recentCommits": [
+     {
++      "hash": "1d016c7",
++      "message": "Auto-restore stashed changes after rebase",
++      "author": "adam-wheater"
++    },
++    {
++      "hash": "f88d759",
++      "message": "Auto-save: End of iteration 1",
++      "author": "adam-wheater"
++    },
++    {
++      "hash": "6740cb5",
+       "message": "Merge branch 'ai-work'",
+-      "author": "adam-wheater",
+-      "hash": "6740cb5"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "015db5a",
+       "message": "Auto-restore stashed changes after rebase",
+-      "author": "adam-wheater",
+-      "hash": "015db5a"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "b450d27",
+       "message": "Copilot review iteration 1",
+-      "author": "adam-wheater",
+-      "hash": "b450d27"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "607220a",
+       "message": "Copilot builders iteration 1 (normal)",
+-      "author": "adam-wheater",
+-      "hash": "607220a"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "6492850",
+       "message": "Auto-restore stashed changes after rebase",
+-      "author": "adam-wheater",
+-      "hash": "6492850"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "0abff69",
+       "message": "Auto-restore stashed changes after rebase",
+-      "author": "adam-wheater",
+-      "hash": "0abff69"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "50edf98",
+       "message": "Auto-restore stashed changes after rebase",
+-      "author": "adam-wheater",
+-      "hash": "50edf98"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "6c4e171",
+       "message": "Auto-save: End of iteration 1",
+-      "author": "adam-wheater",
+-      "hash": "6c4e171"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "ea2a776",
+       "message": "Merge branch 'ai-work'",
+-      "author": "adam-wheater",
+-      "hash": "ea2a776"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "d3a6dac",
+       "message": "Auto-restore stashed changes after rebase",
+-      "author": "adam-wheater",
+-      "hash": "d3a6dac"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "d3bdffc",
+       "message": "Copilot review iteration 1",
+-      "author": "adam-wheater",
+-      "hash": "d3bdffc"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "c8826cc",
+       "message": "Copilot builders iteration 1 (normal)",
+-      "author": "adam-wheater",
+-      "hash": "c8826cc"
++      "author": "adam-wheater"
+     },
+     {
++      "hash": "168cfd4",
+       "message": "Auto-restore stashed changes after rebase",
+-      "author": "adam-wheater",
+-      "hash": "168cfd4"
+-    },
+-    {
+-      "message": "Auto-restore stashed changes after rebase",
+-      "author": "adam-wheater",
+-      "hash": "2c56da9"
+-    },
+-    {
+-      "message": "Add autonomous AI agent system, memory module, and test infrastructure",
+-      "author": "adam-wheater",
+-      "hash": "07f1263"
+-    }
+-  ],
+-  "coChangePatterns": {
+-    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 2,
+-    ".ai-metrics/status.txt|memory/git-state.json": 3,
+-    ".ai-metrics/ai-loop.log|memory/git-state.json": 3,
+-    ".ai-metrics/last.diff|.ai-metrics/status.txt": 2,
+-    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 5
+-  },
+-  "uncommitted": [
+-    {
+-      "status": "M",
+-      "file": ".ai-metrics/ai-loop.log"
+-    },
+-    {
+-      "status": "M",
+-      "file": ".ai-metrics/status.txt"
++      "author": "adam-wheater"
      }
    ],
-   "coChangePatterns": {
--    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 2
--  },
--  "lastGoodCommit": "",
 -  "diffStat": " 2 files changed, 6 insertions(+), 1 deletion(-)",
--  "branch": "main"
-+    ".ai-metrics/ai-loop.log|memory/git-state.json": 2,
-+    ".ai-metrics/status.txt|memory/git-state.json": 2,
-+    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 3
-+  }
+-  "branch": "main",
+   "lastGoodCommit": ""
  }
