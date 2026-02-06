@@ -35,17 +35,6 @@
 - [ ] **C89 — Add catch block logging for all try/catch in RepoMemory.ps1** — lib/RepoMemory.ps1 L100
 - [ ] **C90 — Add forbidden tool error handling for missing permissions in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L120
 - [ ] **C91 — Add completion check for all task streams in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L740
-- [ ] **C81 — Add error handling for Invoke-RestMethod failure in AzureAgent.ps1** — lib/AzureAgent.ps1 L27
-- [ ] **C82 — Fix infinite loop: change 'continue' to 'break' on budget/tool limits in Orchestrator.ps1** — lib/Orchestrator.ps1 L39
-- [ ] **C83 — Add JSON parsing validation in Orchestrator.ps1 before accessing parsed fields** — lib/Orchestrator.ps1 L35
-- [ ] **C84 — Add git clone error handling in run.ps1** — run.ps1 L14
-- [ ] **C85 — Add git checkout error handling in run.ps1** — run.ps1 L16
-- [ ] **C86 — Add git apply error handling in run.ps1** — run.ps1 L49
-- [ ] **C87 — Add git commit error handling in run.ps1** — run.ps1 L65
-- [ ] **C88 — Add path sanitization to prevent directory traversal in DebugLogger.ps1** — lib/DebugLogger.ps1 L17
-- [ ] **C89 — Add catch block logging for all try/catch in RepoMemory.ps1** — lib/RepoMemory.ps1 L100
-- [ ] **C90 — Add forbidden tool error handling for missing permissions in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L120
-- [ ] **C91 — Add completion check for all task streams in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L740
 
 ## D stream: New features
 - [ ] **D10 — Add retry mechanism with exponential backoff for Azure OpenAI API calls** — lib/AzureAgent.ps1
