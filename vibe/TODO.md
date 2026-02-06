@@ -1,0 +1,53 @@
+# TODO
+
+## C stream: Bug fixes
+- [ ] **C92 — Add logging to all empty catch blocks in RepoMemory.ps1** — lib/RepoMemory.ps1 L166, L374, L407
+- [ ] **C93 — Add error handling for missing file in RepoMemory.ps1** — lib/RepoMemory.ps1 L166
+- [ ] **C94 — Add logging to empty catch block in RepoMemory.ps1** — lib/RepoMemory.ps1 L374
+- [ ] **C95 — Add logging to empty catch block in RepoMemory.ps1** — lib/RepoMemory.ps1 L407
+- [ ] **C58 — Add completion check for TODO.md in idle mode** — ai-autonomous-loop-macos-copilot.sh L734
+- [x] **C59 — Ensure all error budget checks in TokenBudget.ps1 throw with clear messages** — lib/TokenBudget.ps1 L30
+- [ ] **C60 — Add forbidden tool error handling in Orchestrator.ps1** — lib/Orchestrator.ps1 L34
+- [ ] **C61 — Ensure exit codes are handled in copilot-smoke.sh** — scripts/copilot-smoke.sh L45
+- [ ] **C62 — Ensure exit codes are handled in copilot-smoke.sh** — scripts/copilot-smoke.sh L50
+- [ ] **C63 — Ensure exit codes are handled in copilot-startup-check.sh** — scripts/copilot-startup-check.sh L18
+- [ ] **C64 — Ensure exit codes are handled in copilot-startup-check.sh** — scripts/copilot-startup-check.sh L71
+- [ ] **C65 — Ensure exit codes are handled in test-agent-fallback.sh** — scripts/test-agent-fallback.sh L57
+- [ ] **C66 — Ensure exit codes are handled in test-agent-fallback.sh** — scripts/test-agent-fallback.sh L91
+- [ ] **C67 — Ensure exit codes are handled in test-agent-fallback.sh** — scripts/test-agent-fallback.sh L543
+- [ ] **C68 — Ensure exit codes are handled in test-agent-fallback.sh** — scripts/test-agent-fallback.sh L540
+- [ ] **C69 — Ensure exit codes are handled in test-agent-fallback.sh** — scripts/test-agent-fallback.sh L96
+- [ ] **C70 — Ensure exit codes are handled in test-agent-fallback.sh** — scripts/test-agent-fallback.sh L118
+- [x] **C74 — Remove unused key variable assignments in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L1092
+- [ ] **C75 — Remove unused variable 'langs' in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L1117
+- [ ] **C76 — Remove unused variable 'basename_set' in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L1125
+- [ ] **C78 — Remove unused variable 'DETECTED_LANGUAGES' in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L1134
+- [ ] **C79 — Replace hardcoded 'api-key' header with secure Authorization Bearer token in AzureAgent.ps1** — lib/AzureAgent.ps1 L24
+- [ ] **C80 — Add null check for API response before accessing .choices[0] in AzureAgent.ps1** — lib/AzureAgent.ps1 L35
+- [ ] **C81 — Add error handling for Invoke-RestMethod failure in AzureAgent.ps1** — lib/AzureAgent.ps1 L27
+- [ ] **C82 — Fix infinite loop: change 'continue' to 'break' on budget/tool limits in Orchestrator.ps1** — lib/Orchestrator.ps1 L39
+- [ ] **C83 — Add JSON parsing validation in Orchestrator.ps1 before accessing parsed fields** — lib/Orchestrator.ps1 L35
+- [ ] **C84 — Add git clone error handling in run.ps1** — run.ps1 L14
+- [ ] **C85 — Add git checkout error handling in run.ps1** — run.ps1 L16
+- [ ] **C86 — Add git apply error handling in run.ps1** — run.ps1 L49
+- [ ] **C87 — Add git commit error handling in run.ps1** — run.ps1 L65
+- [ ] **C88 — Add path sanitization to prevent directory traversal in DebugLogger.ps1** — lib/DebugLogger.ps1 L17
+- [ ] **C89 — Add catch block logging for all try/catch in RepoMemory.ps1** — lib/RepoMemory.ps1 L100
+- [ ] **C90 — Add forbidden tool error handling for missing permissions in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L120
+- [ ] **C91 — Add completion check for all task streams in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L740
+
+## D stream: New features
+- [ ] **D10 — Add retry mechanism with exponential backoff for Azure OpenAI API calls** — lib/AzureAgent.ps1
+- [ ] **D11 — Add configurable timeout for agent execution in Orchestrator.ps1** — lib/Orchestrator.ps1
+- [ ] **D12 — Add [Parameter(Mandatory)] validation attributes to all lib/ functions** — lib/*.ps1
+- [ ] **D13 — Add startup validation for required environment variables (AZURE_OPENAI_ENDPOINT, API_KEY, API_VERSION)** — run.ps1
+- [ ] **D14 — Add structured error response type for agent failures** — lib/Orchestrator.ps1
+
+## E stream: Test coverage
+- [ ] **E27 — Add/verify Pester tests for TokenBudget.ps1 error budget enforcement** — lib/TokenBudget.ps1 L30
+- [ ] **E28 — Add/verify Pester tests for forbidden tool error in Orchestrator.ps1** — lib/Orchestrator.ps1 L34
+- [ ] **E29 — Add/verify Pester tests for exit/return handling in test-agent-fallback.sh** — scripts/test-agent-fallback.sh L540
+- [ ] **E30 — Add Pester tests for AzureAgent.ps1 error handling (HTTP failures, null responses)** — lib/AzureAgent.ps1
+- [ ] **E31 — Add Pester tests for Orchestrator.ps1 JSON parsing robustness** — lib/Orchestrator.ps1
+- [ ] **E32 — Add Pester tests for infinite loop prevention in Orchestrator.ps1** — lib/Orchestrator.ps1
+- [ ] **E33 — Add Pester tests for parameter validation across all lib modules** — lib/*.ps1

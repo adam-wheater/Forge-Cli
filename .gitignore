@@ -1,0 +1,15 @@
+# Vibe loop state files (development tooling, not part of CLI)
+vibe/.ai-metrics/
+vibe/AI_MODE.txt
+
+# Build artifacts
+bin/
+obj/
+node_modules/
+testResults.xml
+
+# IDE
+.vs/
+.vscode/
+*.swp
+*.swo

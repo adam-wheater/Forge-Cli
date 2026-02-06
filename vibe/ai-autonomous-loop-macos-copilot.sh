@@ -301,17 +301,22 @@ bootstrap_dependencies
 # ----------------------------
 # Resolve project directory
 # ----------------------------
+# VIBE_DIR is where this script and its state live (vibe/)
+# PROJECT_DIR is the repo root where the CLI tool code lives
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$SCRIPT_DIR"
+VIBE_DIR="$SCRIPT_DIR"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
-STATE_DIR="${STATE_DIR:-.ai-metrics}"
+# Vibe state stays inside vibe/ - never pollutes the CLI tool
+STATE_DIR="${STATE_DIR:-$VIBE_DIR/.ai-metrics}"
 
 find_first_match() {
   local pattern="$1"
   find "$PROJECT_DIR" \
     \( -path "$PROJECT_DIR/.git" -o -path "$PROJECT_DIR/.git/*" \
-       -o -path "$PROJECT_DIR/$STATE_DIR" -o -path "$PROJECT_DIR/$STATE_DIR/*" \
+       -o -path "$STATE_DIR" -o -path "$STATE_DIR/*" \
+       -o -path "$PROJECT_DIR/vibe" -o -path "$PROJECT_DIR/vibe/*" \
        -o -path "$PROJECT_DIR/bin" -o -path "$PROJECT_DIR/bin/*" \
        -o -path "$PROJECT_DIR/obj" -o -path "$PROJECT_DIR/obj/*" \
        -o -path "$PROJECT_DIR/node_modules" -o -path "$PROJECT_DIR/node_modules/*" \
@@ -744,7 +749,7 @@ ensure_state_dir() {
 
 todo_all_complete() {
   # Check if TODO.md exists and all task items are marked complete
-  local todo_file="TODO.md"
+  local todo_file="$VIBE_DIR/TODO.md"
   if [ ! -f "$todo_file" ]; then
     return 1  # No TODO file, not complete
   fi
@@ -977,7 +982,8 @@ import os
 import subprocess
 
 state_dir = os.environ.get('STATE_DIR', '.ai-metrics')
-ignore_dirs = {'.git', state_dir, 'bin', 'obj', 'node_modules', '__pycache__'}
+# Exclude vibe/ entirely from hash — only CLI code changes matter for convergence
+ignore_dirs = {'.git', state_dir, 'vibe', 'bin', 'obj', 'node_modules', '__pycache__'}
 
 def should_skip(path: str) -> bool:
   parts = path.split(os.sep)
@@ -990,7 +996,7 @@ def tracked_files():
     output = ''
   files = [line.strip() for line in output.splitlines() if line.strip()]
   if files:
-    return files
+    return [f for f in files if not should_skip(f)]
 
   files = []
   for dirpath, dirnames, filenames in os.walk('.'):
@@ -1065,7 +1071,7 @@ detect_repo_languages() {
 import os
 import subprocess
 
-ignore_dirs = {'.git', 'node_modules', 'bin', 'obj', '__pycache__', '.ai-metrics'}
+ignore_dirs = {'.git', 'node_modules', 'bin', 'obj', '__pycache__', '.ai-metrics', 'vibe'}
 ext_map = {
     '.cs': 'csharp',
     '.csproj': 'csharp',
@@ -1211,7 +1217,7 @@ select_language_contexts() {
     add_context_resource "skill" "webapp-testing"
   fi
 
-  if [ -f "$PROJECT_DIR/TODO.md" ] || [ -f "$PROJECT_DIR/README.md" ]; then
+  if [ -f "$VIBE_DIR/TODO.md" ] || [ -f "$PROJECT_DIR/README.md" ]; then
     add_context_resource "instruction" "update-docs-on-code-change"
   fi
 }
@@ -1564,104 +1570,21 @@ append_skill_context() {
 }
 
 # ============================================================
-# REPO MEMORY SYSTEM — structured memory across iterations
-# Store → Compress → Retrieve → Inject
+# REPO MEMORY STUBS — the CLI tool's memory/ and RepoMemory.ps1
+# are NOT used by the vibe loop. These are no-op stubs so callers
+# don't break. The vibe loop tracks its own state via .ai-metrics/.
 # ============================================================
 REPO_MEMORY_SUMMARY=""
 
-initialize_repo_memory() {
-  if ! command -v pwsh >/dev/null 2>&1; then
-    log "  WARNING: pwsh not available, skipping memory initialization"
-    return 0
-  fi
-  log "Initializing repo memory..."
-  pwsh -NoProfile -Command "
-    . '$PROJECT_DIR/lib/RepoMemory.ps1'
-    Push-Location '$PROJECT_DIR'
-    Initialize-RepoMemory '$PROJECT_DIR' | Out-Null
-    Pop-Location
-  " 2>/dev/null || log "  WARNING: Memory initialization failed (non-fatal)"
-}
-
-refresh_repo_memory() {
-  if ! command -v pwsh >/dev/null 2>&1; then
-    REPO_MEMORY_SUMMARY=""
-    return 0
-  fi
-  REPO_MEMORY_SUMMARY="$(pwsh -NoProfile -Command "
-    . '$PROJECT_DIR/lib/RepoMemory.ps1'
-    Push-Location '$PROJECT_DIR'
-    Update-GitMemory '$PROJECT_DIR' | Out-Null
-    Get-MemorySummary
-    Pop-Location
-  " 2>/dev/null)" || REPO_MEMORY_SUMMARY=""
-}
-
-save_run_memory() {
-  local iteration="${1:-0}"
-  local build_ok="${2:-true}"
-  local test_ok="${3:-true}"
-  local failures="${4:-}"
-  local diff_summary="${5:-}"
-
-  if ! command -v pwsh >/dev/null 2>&1; then return 0; fi
-
-  pwsh -NoProfile -Command "
-    . '$PROJECT_DIR/lib/RepoMemory.ps1'
-    Push-Location '$PROJECT_DIR'
-    Save-RunState -Iteration $iteration -BuildOk \$$build_ok -TestOk \$$test_ok ``
-      -Failures @($(printf "'%s'," $failures | sed 's/,$//')) ``
-      -DiffSummary '$diff_summary'
-    Update-CodeIntel '$PROJECT_DIR'
-    Pop-Location
-  " 2>/dev/null || true
-}
-
-update_memory_heuristics() {
-  local failed_files="${1:-}"
-  local failed_tests="${2:-}"
-
-  if ! command -v pwsh >/dev/null 2>&1; then return 0; fi
-  if [ -z "$failed_files" ] && [ -z "$failed_tests" ]; then return 0; fi
-
-  pwsh -NoProfile -Command "
-    . '$PROJECT_DIR/lib/RepoMemory.ps1'
-    Push-Location '$PROJECT_DIR'
-    Update-Heuristics -FailedFiles @($(printf "'%s'," $failed_files | sed 's/,$//')) ``
-      -FailedTests @($(printf "'%s'," $failed_tests | sed 's/,$//'))
-    Pop-Location
-  " 2>/dev/null || true
-}
-
-update_git_memory() {
-  if ! command -v pwsh >/dev/null 2>&1; then return 0; fi
-
-  pwsh -NoProfile -Command "
-    . '$PROJECT_DIR/lib/RepoMemory.ps1'
-    Push-Location '$PROJECT_DIR'
-    Update-GitMemory '$PROJECT_DIR' | Out-Null
-    Pop-Location
-  " 2>/dev/null || true
-}
-
-compact_memory() {
-  if ! command -v pwsh >/dev/null 2>&1; then return 0; fi
-
-  pwsh -NoProfile -Command "
-    . '$PROJECT_DIR/lib/RepoMemory.ps1'
-    Push-Location '$PROJECT_DIR'
-    Compress-Memory | Out-Null
-    Pop-Location
-  " 2>/dev/null || true
-}
+initialize_repo_memory() { return 0; }
+refresh_repo_memory() { REPO_MEMORY_SUMMARY=""; }
+save_run_memory() { return 0; }
+update_memory_heuristics() { return 0; }
+update_git_memory() { return 0; }
+compact_memory() { return 0; }
 
 append_memory_context() {
-  local base="$1"
-  if [ -n "$REPO_MEMORY_SUMMARY" ]; then
-    printf "%s\n\n%s" "$base" "$REPO_MEMORY_SUMMARY"
-  else
-    printf "%s" "$base"
-  fi
+  printf "%s" "$1"
 }
 
 limit_prompt_size() {
@@ -2062,33 +1985,36 @@ run_builder_prompts() {
     memory_block=$'\n\n'"$REPO_MEMORY_SUMMARY"
   fi
 
-  # Bug Fix Builder - picks C-stream items from TODO.md
+  # Bug Fix Builder - picks C-stream items from vibe/TODO.md
   local base_bugfix="You are the Bug Fix Builder.
-Read TODO.md and pick ONE unchecked item from the C stream (bug fixes & code quality).
-Implement the fix with proper error handling and add/update tests.
-Mark the item [x] in TODO.md when complete.
+Read vibe/TODO.md and pick ONE unchecked item from the C stream (bug fixes & code quality).
+Implement the fix in the CLI code (lib/, agents/, run.ps1, tests/) with proper error handling and add/update tests.
+Mark the item [x] in vibe/TODO.md when complete.
+IMPORTANT: Do NOT modify anything in the vibe/ folder except vibe/TODO.md. The CLI tool code is at the repo root.
 Do not ask questions. Apply changes directly.${memory_block}"
   local bugfix_prompt
   bugfix_prompt="$(append_skill_context "$base_bugfix")"
   bugfix_prompt="$(limit_prompt_size "$bugfix_prompt")"
   run_pipeline "builder" "bugfix-builder" "$COPILOT_BUILDER_CHAIN" "$bugfix_prompt" || true
 
-  # Feature Builder - picks D-stream items from TODO.md
+  # Feature Builder - picks D-stream items from vibe/TODO.md
   local base_feature="You are the Feature Builder.
-Read TODO.md and pick ONE unchecked item from the D stream (new features).
-Implement the feature end-to-end with tests and docs.
-Mark the item [x] in TODO.md when complete.
+Read vibe/TODO.md and pick ONE unchecked item from the D stream (new features).
+Implement the feature end-to-end in the CLI code (lib/, agents/, run.ps1, tests/) with tests and docs.
+Mark the item [x] in vibe/TODO.md when complete.
+IMPORTANT: Do NOT modify anything in the vibe/ folder except vibe/TODO.md. The CLI tool code is at the repo root.
 Do not ask questions. Apply changes directly.${memory_block}"
   local feature_prompt
   feature_prompt="$(append_skill_context "$base_feature")"
   feature_prompt="$(limit_prompt_size "$feature_prompt")"
   run_pipeline "builder" "feature-builder" "$COPILOT_BUILDER_CHAIN" "$feature_prompt" || true
 
-  # Test Builder - picks E-stream items from TODO.md
+  # Test Builder - picks E-stream items from vibe/TODO.md
   local base_test="You are the Test Builder.
-Read TODO.md and pick ONE unchecked item from the E stream (test coverage).
-Write comprehensive tests for the specified area.
-Mark the item [x] in TODO.md when complete.
+Read vibe/TODO.md and pick ONE unchecked item from the E stream (test coverage).
+Write comprehensive tests for the CLI code (lib/, agents/, run.ps1) in tests/.
+Mark the item [x] in vibe/TODO.md when complete.
+IMPORTANT: Do NOT modify anything in the vibe/ folder except vibe/TODO.md. The CLI tool code is at the repo root.
 Do not ask questions. Apply changes directly.${memory_block}"
   local test_prompt
   test_prompt="$(append_skill_context "$base_test")"
@@ -2097,8 +2023,9 @@ Do not ask questions. Apply changes directly.${memory_block}"
 
   # General Improver - picks any unchecked item
   local base_improver="You are the Improver.
-Read TODO.md and pick ONE unchecked item from ANY stream (C, D, or E).
-Implement it fully with tests. Mark the item [x] when complete.
+Read vibe/TODO.md and pick ONE unchecked item from ANY stream (C, D, or E).
+Implement it fully in the CLI code (lib/, agents/, run.ps1, tests/) with tests. Mark the item [x] in vibe/TODO.md when complete.
+IMPORTANT: Do NOT modify anything in the vibe/ folder except vibe/TODO.md. The CLI tool code is at the repo root.
 Do not ask questions. Apply changes directly.${memory_block}"
   local improver_prompt
   improver_prompt="$(append_skill_context "$base_improver")"
@@ -2141,23 +2068,24 @@ run_backlog_groomer_prompt() {
   local base_prompt
   base_prompt="You are the Backlog Groomer.
 
-Scan the codebase and add new issues to TODO.md:
+Scan the CLI codebase (lib/, agents/, run.ps1, tests/) and add new issues to vibe/TODO.md:
 
-1. **Find issues**: Search for TODO/FIXME/HACK comments, missing error handling, untested code, security issues.
+1. **Find issues**: Search for TODO/FIXME/HACK comments, missing error handling, untested code, security issues in the CLI code (NOT in the vibe/ folder).
 
-2. **Add to TODO.md** in the appropriate stream:
+2. **Add to vibe/TODO.md** in the appropriate stream:
    - C stream: Bug fixes (C58, C59...)
    - D stream: New features (D10, D11...)
    - E stream: Test coverage (E27, E28...)
 
 3. **Format**: \`- [ ] **ID — Title** — file.cs L##\`
 
-4. **Mark done**: If code shows a task is complete, mark it \`[x]\`.
+4. **Mark done**: If code shows a task is complete, mark it \`[x]\` in vibe/TODO.md.
 
 Rules:
 - Only add REAL issues with file:line evidence
 - No duplicates
 - Sequential IDs within each stream
+- IMPORTANT: Do NOT modify anything in the vibe/ folder except vibe/TODO.md
 - Do not ask questions. Apply changes directly."
 
   local groomer_prompt
@@ -2232,11 +2160,11 @@ run_interactive_tmux() {
   fi
 
   local pane_prompts=(
-    "You are the Bug Fix Builder. Read TODO.md and pick ONE unchecked C-stream item (bug fix). Implement it with tests. Mark [x] when done. Do not ask questions. Apply changes directly.${mem_ctx}"
-    "You are the Feature Builder. Read TODO.md and pick ONE unchecked D-stream item (new feature). Implement it with tests. Mark [x] when done. Do not ask questions. Apply changes directly.${mem_ctx}"
-    "You are the Test Builder. Read TODO.md and pick ONE unchecked E-stream item (test coverage). Write the tests. Mark [x] when done. Do not ask questions. Apply changes directly.${mem_ctx}"
-    "You are the Improver. Read TODO.md and pick ONE unchecked item from ANY stream. Implement it with tests. Mark [x] when done. Do not ask questions. Apply changes directly.${mem_ctx}"
-    "You are the Backlog Groomer. Scan codebase for issues. Add new C/D/E items to TODO.md with file:line evidence. Mark completed items [x]. Do not ask questions. Apply changes directly.${mem_ctx}"
+    "You are the Bug Fix Builder. Read vibe/TODO.md and pick ONE unchecked C-stream item (bug fix). Implement the fix in the CLI code (lib/, agents/, run.ps1, tests/). Mark [x] in vibe/TODO.md when done. Do NOT modify anything in vibe/ except vibe/TODO.md. Apply changes directly.${mem_ctx}"
+    "You are the Feature Builder. Read vibe/TODO.md and pick ONE unchecked D-stream item (new feature). Implement it in the CLI code (lib/, agents/, run.ps1, tests/). Mark [x] in vibe/TODO.md when done. Do NOT modify anything in vibe/ except vibe/TODO.md. Apply changes directly.${mem_ctx}"
+    "You are the Test Builder. Read vibe/TODO.md and pick ONE unchecked E-stream item (test coverage). Write tests in tests/ for the CLI code. Mark [x] in vibe/TODO.md when done. Do NOT modify anything in vibe/ except vibe/TODO.md. Apply changes directly.${mem_ctx}"
+    "You are the Improver. Read vibe/TODO.md and pick ONE unchecked item from ANY stream. Implement it in the CLI code (lib/, agents/, run.ps1, tests/). Mark [x] in vibe/TODO.md when done. Do NOT modify anything in vibe/ except vibe/TODO.md. Apply changes directly.${mem_ctx}"
+    "You are the Backlog Groomer. Scan the CLI code (lib/, agents/, run.ps1, tests/) for issues. Add new C/D/E items to vibe/TODO.md with file:line evidence. Mark completed items [x]. Do NOT modify anything in vibe/ except vibe/TODO.md. Apply changes directly.${mem_ctx}"
   )
 
   # Limit prompts array to agent_count (prioritize Bug Fix, Feature, Backlog Groomer)
@@ -2404,7 +2332,7 @@ checkout_main_branch() {
         if ! git rebase "origin/$MAIN_BRANCH"; then
           log "WARNING: Rebase failed, aborting and forcing reset to origin"
           git rebase --abort 2>/dev/null || true
-          echo "- [ ] Git rebase conflict: local $MAIN_BRANCH diverged from origin - local commits were discarded, review needed" >> TODO.md
+          echo "- [ ] Git rebase conflict: local $MAIN_BRANCH diverged from origin - local commits were discarded, review needed" >> "$VIBE_DIR/TODO.md"
           git reset --hard "origin/$MAIN_BRANCH"
         fi
       fi
@@ -2422,7 +2350,7 @@ checkout_main_branch() {
       if ! git diff --cached --quiet; then
         if ! git commit -m "Auto-restore stashed changes after rebase"; then
           log "ERROR: Could not commit stash changes"
-          echo "- [ ] Git stash conflict needs manual resolution (stash@{0})" >> TODO.md
+          echo "- [ ] Git stash conflict needs manual resolution (stash@{0})" >> "$VIBE_DIR/TODO.md"
           echo "stability" > "$FORCED_MODE_FILE"
         fi
       fi
@@ -2717,7 +2645,7 @@ fi
 
 ensure_repo
 
-[ -f TODO.md ] || echo "# TODO" > TODO.md
+[ -f "$VIBE_DIR/TODO.md" ] || echo "# TODO" > "$VIBE_DIR/TODO.md"
 
 # Initialize repo memory system (scan project structure, build code intel, capture git state)
 initialize_repo_memory
@@ -2876,10 +2804,14 @@ capture_error_context() {
 commit_all_changes() {
   local msg="$1"
   if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-    git add -A
-    git commit -m "$msg" || true
-    log "Committed: $msg"
-    return 0
+    # Stage everything EXCEPT vibe state files (they're development tooling, not CLI code)
+    git add -A -- ':!vibe/.ai-metrics' ':!vibe/AI_MODE.txt'
+    # Only commit if there are staged changes after exclusions
+    if ! git diff --cached --quiet; then
+      git commit -m "$msg" || true
+      log "Committed: $msg"
+      return 0
+    fi
   fi
   return 1
 }
@@ -3059,7 +2991,7 @@ run_main_loop() {
     MODE="$(cat "$FORCED_MODE_FILE")"
     log "Forced mode: $MODE"
   fi
-  echo "$MODE" > AI_MODE.txt
+  echo "$MODE" > "$VIBE_DIR/AI_MODE.txt"
   log_progress "ITERATION $ITER" "Mode: $MODE"
 
   refresh_skill_context
@@ -3122,9 +3054,13 @@ run_main_loop() {
   log_progress "BUILDERS" "Completed"
 
   if ! git diff --quiet; then
-    git add -A
-    git commit -m "Copilot builders iteration $ITER ($MODE)"
-    log_progress "COMMIT" "Builder changes committed"
+    git add -A -- ':!vibe/.ai-metrics' ':!vibe/AI_MODE.txt'
+    if ! git diff --cached --quiet; then
+      git commit -m "Copilot builders iteration $ITER ($MODE)"
+      log_progress "COMMIT" "Builder changes committed"
+    else
+      log_progress "COMMIT" "No CLI changes to commit (only vibe state changed)"
+    fi
   else
     log_progress "COMMIT" "No builder changes to commit"
   fi
@@ -3168,9 +3104,13 @@ run_main_loop() {
   rm -rf "$STATE_DIR/review_chunks"
 
   if ! git diff --quiet; then
-    git add -A
-    git commit -m "Copilot review iteration $ITER"
-    log_progress "COMMIT" "Reviewer changes committed"
+    git add -A -- ':!vibe/.ai-metrics' ':!vibe/AI_MODE.txt'
+    if ! git diff --cached --quiet; then
+      git commit -m "Copilot review iteration $ITER"
+      log_progress "COMMIT" "Reviewer changes committed"
+    else
+      log_progress "COMMIT" "No CLI changes to commit (only vibe state changed)"
+    fi
   else
     log_progress "COMMIT" "No reviewer changes to commit"
   fi
@@ -3187,7 +3127,7 @@ run_main_loop() {
 
   if ! run_build; then
     build_ok=0
-    echo "Build failures" >> TODO.md
+    echo "Build failures" >> "$VIBE_DIR/TODO.md"
     log_progress "BUILD" "FAILED - will be auto-resolved"
     save_run_memory "$ITER" "false" "false" "" "Build failed"
   else
@@ -3199,7 +3139,7 @@ run_main_loop() {
       save_run_memory "$ITER" "true" "true" "" "Tests passed"
     else
       test_ok=0
-      echo "Test failures" >> TODO.md
+      echo "Test failures" >> "$VIBE_DIR/TODO.md"
       log_progress "TEST" "FAILED - will be auto-resolved"
       save_run_memory "$ITER" "true" "false" "" "Tests failed"
     fi
@@ -3228,7 +3168,7 @@ run_main_loop() {
       git add -A
       if ! git commit -m "Auto-resolve merge conflict (--theirs)"; then
         log_progress "MERGE" "FAILED - could not commit conflict resolution"
-        echo "- [ ] Git merge conflict between $WORK_BRANCH and $MAIN_BRANCH needs manual resolution" >> TODO.md
+        echo "- [ ] Git merge conflict between $WORK_BRANCH and $MAIN_BRANCH needs manual resolution" >> "$VIBE_DIR/TODO.md"
         echo "stability" > "$FORCED_MODE_FILE"
         git merge --abort 2>/dev/null || true
       fi
@@ -3238,7 +3178,7 @@ run_main_loop() {
       git merge --abort 2>/dev/null || true
       if ! git merge --no-ff --no-edit -X theirs "$WORK_BRANCH" 2>/dev/null; then
         log_progress "MERGE" "FAILED - could not merge branches"
-        echo "- [ ] Git merge failed: $WORK_BRANCH into $MAIN_BRANCH - needs manual intervention" >> TODO.md
+        echo "- [ ] Git merge failed: $WORK_BRANCH into $MAIN_BRANCH - needs manual intervention" >> "$VIBE_DIR/TODO.md"
         echo "stability" > "$FORCED_MODE_FILE"
         git merge --abort 2>/dev/null || true
       fi

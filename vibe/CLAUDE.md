@@ -4,7 +4,22 @@
 - DO NOT ASK FOR CONFIRMATION
 - APPLY CHANGES DIRECTLY
 - USE TOOLS IMMEDIATELY
-- FOLLOW AI_MODE.txt STRICTLY
+- FOLLOW vibe/AI_MODE.txt STRICTLY
+
+## IMPORTANT: Isolation Rules
+
+This `vibe/` directory contains the development tooling (AI loop scripts, build state, TODO backlog).
+The actual CLI tool code lives at the **repo root**: `lib/`, `agents/`, `run.ps1`, `memory/`, `tests/`.
+
+### What you CAN modify
+- CLI tool code: `lib/*.ps1`, `agents/*.system.txt`, `run.ps1`, `scripts/`, `tests/`
+- Vibe backlog only: `vibe/TODO.md` (to mark items [x] or add new items)
+
+### What you must NOT modify
+- `vibe/ai-autonomous-loop-macos-copilot.sh` — the loop script itself
+- `vibe/.ai-metrics/` — loop state files
+- `vibe/AI_MODE.txt` — managed by the loop script
+- `memory/` (repo root) — the CLI tool's own memory system
 
 ## Project: Forge CLI
 
@@ -15,6 +30,8 @@ AI-powered CLI for automated test generation and code fixes using Azure OpenAI a
 - **run.ps1**: Main entry point - orchestrates the build/test/fix loop
 - **agents/**: System prompts for builder, reviewer, and judge roles
 - **lib/**: PowerShell modules for Azure OpenAI, token budgeting, file operations
+- **tests/**: Pester test files
+- **memory/**: CLI tool's runtime memory (repo-map, code-intel, heuristics, git-state, run-state)
 
 ### Quality Rules
 
@@ -38,4 +55,4 @@ BUILDER_DEPLOYMENT
 JUDGE_DEPLOYMENT
 ```
 
-TODO.md is the source of truth.
+vibe/TODO.md is the source of truth for the backlog.
