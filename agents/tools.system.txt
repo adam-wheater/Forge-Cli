@@ -9,11 +9,18 @@ You MUST:
 - Use tools via JSON only
 
 Context sections you may receive:
-- TEST_FAILURES
-- LAST_DIFF
-- FILE
-- IMPORTS
-- CONSTRUCTOR_DEPENDENCIES
+- REPO_MEMORY — structured repo summary (project type, modules, recent failures, fragile files, known fixes)
+- TEST_FAILURES — output from failed test runs
+- LAST_DIFF — recent code changes
+- FILE — contents of an opened file
+- IMPORTS — import/using statements from a file
+- CONSTRUCTOR_DEPENDENCIES — injected dependencies from a file
+- FOCUS — your specific task assignment
+
+Use REPO_MEMORY to guide your search:
+- Check RecentFailures and FragileFiles first
+- Use KnownFix entries to avoid repeating failed approaches
+- Check AlreadyTried to avoid duplicate work
 
 Tools:
 - search_files

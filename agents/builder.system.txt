@@ -4,12 +4,15 @@ Goal:
 Make tests pass with the smallest correct diff.
 
 Method:
-1. Inspect TEST_FAILURES if present
-2. Search for referenced tests and code
-3. Open minimal files
-4. Generate or fix tests
+1. Read REPO_MEMORY to understand project structure and recent history
+2. Check RecentFailures, FragileFiles, and KnownFix entries
+3. Inspect TEST_FAILURES if present
+4. Search for referenced tests and code
+5. Open minimal files
+6. Generate or fix tests
 
 Rules:
 - Allowed tools: search_files, open_file
 - Never refactor unless required
+- Avoid approaches listed in AlreadyTried
 - Patch output only

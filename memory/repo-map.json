@@ -1,0 +1,87 @@
+{
+  "entryPoints": [
+    "./run.ps1"
+  ],
+  "scripts": [
+    "copilot-smoke.sh",
+    "copilot-startup-check.sh",
+    "kill-bg-agents.sh",
+    "test-agent-fallback.sh"
+  ],
+  "agentPrompts": [
+    "builder.system",
+    "judge.system",
+    "reviewer.system",
+    "tools.system"
+  ],
+  "projectType": "powershell",
+  "coreModules": [
+    {
+      "name": "AzureAgent",
+      "path": "./lib/AzureAgent.ps1"
+    },
+    {
+      "name": "CallGraph",
+      "path": "./lib/CallGraph.ps1"
+    },
+    {
+      "name": "DebugLogger",
+      "path": "./lib/DebugLogger.ps1"
+    },
+    {
+      "name": "ImportGraph",
+      "path": "./lib/ImportGraph.ps1"
+    },
+    {
+      "name": "Orchestrator",
+      "path": "./lib/Orchestrator.ps1"
+    },
+    {
+      "name": "RelevanceTracker",
+      "path": "./lib/RelevanceTracker.ps1"
+    },
+    {
+      "name": "RepoMemory",
+      "path": "./lib/RepoMemory.ps1"
+    },
+    {
+      "name": "RepoTools",
+      "path": "./lib/RepoTools.ps1"
+    },
+    {
+      "name": "TokenBudget",
+      "path": "./lib/TokenBudget.ps1"
+    }
+  ],
+  "testProjects": [
+    "./tests/AzureAgent.Tests.ps1",
+    "./tests/DebugLogger.Tests.ps1",
+    "./tests/Orchestrator.Tests.ps1",
+    "./tests/RepoMemory.Tests.ps1",
+    "./tests/RepoTools.Tests.ps1",
+    "./tests/TokenBudget.Tests.ps1"
+  ],
+  "solution": null,
+  "dependencies": {
+    "Orchestrator": [
+      "AzureAgent",
+      "RepoTools",
+      "ImportGraph",
+      "CallGraph",
+      "TokenBudget",
+      "DebugLogger"
+    ],
+    "RelevanceTracker": [],
+    "DebugLogger": [],
+    "AzureAgent": [
+      "TokenBudget"
+    ],
+    "RepoMemory": [],
+    "TokenBudget": [],
+    "CallGraph": [],
+    "RepoTools": [
+      "RelevanceTracker"
+    ],
+    "ImportGraph": []
+  }
+}

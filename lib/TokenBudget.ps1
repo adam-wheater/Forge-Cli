@@ -10,6 +10,9 @@ $Global:MAX_COST_GBP = 25.00
 
 function Add-TokenUsage {
     param ($Prompt, $Completion)
+    if ([int]$Prompt -lt 0 -or [int]$Completion -lt 0) {
+        throw "Token values must be non-negative integers."
+    }
     $Global:PromptTokens += [int]$Prompt
     $Global:CompletionTokens += [int]$Completion
 }
@@ -24,10 +27,26 @@ function Get-CurrentCostGBP {
 }
 
 function Enforce-Budgets {
-    param ($IterationStartTokens)
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]$IterationStartTokens
+    )
 
-    $used = (Get-TotalTokens) - $IterationStartTokens
-    if ($used -gt $Global:MAX_ITERATION_TOKENS) { throw "Iteration token budget exceeded" }
-    if ((Get-TotalTokens) -gt $Global:MAX_TOTAL_TOKENS) { throw "Total token budget exceeded" }
-    if ((Get-CurrentCostGBP) -gt $Global:MAX_COST_GBP) { throw "Cost budget exceeded" }
+    $totalTokens = Get-TotalTokens
+    $usedTokens = $totalTokens - $IterationStartTokens
+
+    if ($usedTokens -gt $Global:MAX_ITERATION_TOKENS) {
+        throw "Iteration token budget exceeded: usedTokens=$usedTokens limitTokens=$($Global:MAX_ITERATION_TOKENS) iterationStartTokens=$IterationStartTokens totalTokens=$totalTokens"
+    }
+
+    if ($totalTokens -gt $Global:MAX_TOTAL_TOKENS) {
+        throw "Total token budget exceeded: totalTokens=$totalTokens limitTokens=$($Global:MAX_TOTAL_TOKENS)"
+    }
+
+    $costGBP = Get-CurrentCostGBP
+    if ($costGBP -gt $Global:MAX_COST_GBP) {
+        throw "Cost budget exceeded: costGBP=$costGBP limitGBP=$($Global:MAX_COST_GBP) promptTokens=$($Global:PromptTokens) completionTokens=$($Global:CompletionTokens)"
+    }
 }

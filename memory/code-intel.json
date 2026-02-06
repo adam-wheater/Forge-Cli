@@ -1,0 +1,174 @@
+{
+  "recentlyChanged": [
+    "tests/tmp-logs/20260205-202841-347-test.log",
+    ".ai-metrics/ai-loop.log",
+    ".ai-metrics/status.txt",
+    "tests/tmp-logs/20260205-202834-202-test.log",
+    ".ai-metrics/CLAUDE.md",
+    ".ai-metrics/last.diff",
+    "tests/tmp-logs/CLAUDE.md",
+    "tests/tmp-logs/20260205-195708-952-test.log",
+    "tests/tmp-logs/20260205-195238-224-test.log",
+    "tests/tmp-logs/20260205-195248-965-test.log",
+    ".ai-metrics/context-cache/CLAUDE.md",
+    ".ai-metrics/context-cache/instruction-powershell-pester-5.md",
+    ".ai-metrics/context-cache/instruction-powershell.md",
+    ".ai-metrics/context-cache/instruction-shell.md"
+  ],
+  "testToCodeMap": {
+    "Orchestrator.Tests": [
+      "lib/Orchestrator.ps1"
+    ],
+    "TokenBudget.Tests": [
+      "lib/TokenBudget.ps1"
+    ],
+    "DebugLogger.Tests": [
+      "lib/DebugLogger.ps1"
+    ],
+    "RepoTools.Tests": [
+      "lib/RepoTools.ps1"
+    ],
+    "RepoMemory.Tests": [
+      "lib/RepoMemory.ps1"
+    ],
+    "AzureAgent.Tests": [
+      "lib/AzureAgent.ps1"
+    ]
+  },
+  "failingTestToCode": {},
+  "callGraph": {
+    "Orchestrator": {
+      "defines": [
+        "Run-Agent"
+      ],
+      "calls": [
+        "Invoke-AzureAgent",
+        "Write-DebugLog",
+        "ConvertFrom-Json",
+        "Search-Files",
+        "Open-File",
+        "Get-Imports",
+        "Get-ConstructorDependencies",
+        "Show-Diff"
+      ]
+    },
+    "RelevanceTracker": {
+      "defines": [
+        "Mark-Relevant",
+        "Get-RelevanceScore"
+      ],
+      "calls": []
+    },
+    "DebugLogger": {
+      "defines": [
+        "Init-Debug",
+        "Write-DebugLog"
+      ],
+      "calls": [
+        "Join-Path",
+        "Get-Location",
+        "Test-Path",
+        "New-Item",
+        "Out-Null",
+        "Get-Date",
+        "Out-File"
+      ]
+    },
+    "AzureAgent": {
+      "defines": [
+        "Invoke-AzureAgent"
+      ],
+      "calls": [
+        "ConvertTo-Json",
+        "Content-Type",
+        "Invoke-RestMethod",
+        "Add-TokenUsage"
+      ]
+    },
+    "RepoMemory": {
+      "defines": [
+        "Get-MemoryPath",
+        "Read-MemoryFile",
+        "Write-MemoryFile",
+        "Initialize-RepoMemory",
+        "Update-CodeIntel",
+        "calls",
+        "definitions",
+        "calls",
+        "Save-RunState",
+        "Update-Heuristics",
+        "Get-MemorySummary"
+      ],
+      "calls": [
+        "Join-Path",
+        "Test-Path",
+        "Get-Content",
+        "ConvertFrom-Json",
+        "Split-Path",
+        "New-Item",
+        "Out-Null",
+        "ConvertTo-Json",
+        "Out-File",
+        "Get-Location",
+        "Get-ChildItem",
+        "Select-Object",
+        "Where-Object",
+        "ForEach-Object",
+        "Verb-Noun",
+        "A-Z",
+        "Sort-Object",
+        "Add-Member"
+      ]
+    },
+    "TokenBudget": {
+      "defines": [
+        "Add-TokenUsage",
+        "Get-TotalTokens",
+        "Get-CurrentCostGBP",
+        "Enforce-Budgets"
+      ],
+      "calls": []
+    },
+    "CallGraph": {
+      "defines": [
+        "Get-ConstructorDependencies"
+      ],
+      "calls": [
+        "Test-Path",
+        "Get-Content",
+        "Select-String",
+        "Select-Object"
+      ]
+    },
+    "RepoTools": {
+      "defines": [
+        "Score-File",
+        "Search-Files",
+        "Open-File",
+        "Show-Diff"
+      ],
+      "calls": [
+        "Get-RelevanceScore",
+        "ForEach-Object",
+        "Select-Object",
+        "Where-Object",
+        "Sort-Object",
+        "Test-Path",
+        "Mark-Relevant",
+        "Get-Content"
+      ]
+    },
+    "ImportGraph": {
+      "defines": [
+        "Get-Imports"
+      ],
+      "calls": [
+        "Test-Path",
+        "Get-Content",
+        "Where-Object",
+        "ForEach-Object",
+        "Select-Object"
+      ]
+    }
+  }
+}

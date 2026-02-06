@@ -1,0 +1,49 @@
+{
+  "coFailures": {
+    "lib/AzureAgent.ps1|lib/TokenBudget.ps1": 1,
+    "lib/AzureAgent.ps1|lib/Orchestrator.ps1": 1
+  },
+  "fragileFiles": [
+    "lib/AzureAgent.ps1",
+    "lib/TokenBudget.ps1",
+    "lib/Orchestrator.ps1"
+  ],
+  "flakyTests": [
+    "Test.ApiCall",
+    "Test.ToolPerm"
+  ],
+  "knownFixes": {
+    "Test.ApiCall": "Fixed permission check"
+  },
+  "failureFreq": {
+    "lib/AzureAgent.ps1": 2,
+    "Test.ApiCall": 2
+  },
+  "fixPatterns": [
+    {
+      "description": "Added null check",
+      "timestamp": "2026-02-05T21:23:29",
+      "tests": [
+        "Test.ApiCall"
+      ],
+      "files": [
+        "lib/AzureAgent.ps1",
+        "lib/TokenBudget.ps1"
+      ],
+      "succeeded": true
+    },
+    {
+      "description": "Fixed permission check",
+      "timestamp": "2026-02-05T21:23:29",
+      "tests": [
+        "Test.ApiCall",
+        "Test.ToolPerm"
+      ],
+      "files": [
+        "lib/AzureAgent.ps1",
+        "lib/Orchestrator.ps1"
+      ],
+      "succeeded": false
+    }
+  ]
+}

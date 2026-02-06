@@ -1,0 +1,99 @@
+{
+  "uncommitted": [
+    {
+      "status": "M",
+      "file": ".ai-metrics/ai-loop.log"
+    },
+    {
+      "status": "M",
+      "file": ".ai-metrics/status.txt"
+    }
+  ],
+  "recentCommits": [
+    {
+      "hash": "ec5a73e",
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "cc9f835",
+      "message": "Auto-save: End of iteration 1",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "ad4a1a9",
+      "message": "Merge branch 'ai-work'",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "b003fbb",
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "3dd154f",
+      "message": "Copilot review iteration 1",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "306ca45",
+      "message": "Copilot builders iteration 1 (normal)",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "a3ba91c",
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "dd8f173",
+      "message": "Auto-save: End of iteration 1",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "36afc89",
+      "message": "Merge branch 'ai-work'",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "4c5096a",
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "da4d058",
+      "message": "Copilot review iteration 1",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "fccfdc6",
+      "message": "Copilot builders iteration 1 (normal)",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "86ae527",
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "f3cecbd",
+      "message": "Auto-save: End of iteration 1",
+      "author": "adam-wheater"
+    },
+    {
+      "hash": "ac6133f",
+      "message": "Merge branch 'ai-work'",
+      "author": "adam-wheater"
+    }
+  ],
+  "branch": "ai-work",
+  "lastGoodCommit": "",
+  "coChangePatterns": {
+    ".ai-metrics/ai-loop.log|memory/git-state.json": 6,
+    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 9,
+    ".ai-metrics/last.diff|.ai-metrics/status.txt": 3,
+    ".ai-metrics/status.txt|memory/git-state.json": 6,
+    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 3
+  },
+  "diffStat": " 2 files changed, 4 insertions(+), 1 deletion(-)"
+}

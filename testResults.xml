@@ -1,0 +1,144 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="19" errors="0" failures="0" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2026-02-05" time="13:08:33">
+  <environment nunit-version="2.5.8.0" platform="Linux" user="root" os-version="6.8.0-90-generic" machine-name="GitHub-Vibe" cwd="/root/Forge-Cli" clr-version="9.0.10" user-domain="" />
+  <culture-info current-culture="en-US" current-uiculture="en-US" />
+  <test-suite type="TestFixture" name="Pester" executed="True" result="Success" success="True" time="1.2279" asserts="0" description="Pester">
+    <results>
+      <test-suite type="TestFixture" name="/root/Forge-Cli/tests/AzureAgent.Tests.ps1" executed="True" result="Success" success="True" time="0.7354" asserts="0" description="/root/Forge-Cli/tests/AzureAgent.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Invoke-AzureAgent" executed="True" result="Success" success="True" time="0.4106" asserts="0" description="Invoke-AzureAgent">
+            <results>
+              <test-suite type="TestFixture" name="Invoke-AzureAgent.With valid parameters" executed="True" result="Success" success="True" time="0.3075" asserts="0" description="Invoke-AzureAgent.With valid parameters">
+                <results>
+                  <test-case description="Returns a string response and updates token usage" name="Invoke-AzureAgent.With valid parameters.Returns a string response and updates token usage" time="0.2862" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Invoke-AzureAgent.When API returns no usage" executed="True" result="Success" success="True" time="0.3314" asserts="0" description="Invoke-AzureAgent.When API returns no usage">
+                <results>
+                  <test-case description="Does not throw and returns content" name="Invoke-AzureAgent.When API returns no usage.Does not throw and returns content" time="0.0177" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Invoke-AzureAgent.When API call fails" executed="True" result="Success" success="True" time="0.4029" asserts="0" description="Invoke-AzureAgent.When API call fails">
+                <results>
+                  <test-case description="Throws an exception" name="Invoke-AzureAgent.When API call fails.Throws an exception" time="0.0665" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="/root/Forge-Cli/tests/DebugLogger.Tests.ps1" executed="True" result="Success" success="True" time="0.0888" asserts="0" description="/root/Forge-Cli/tests/DebugLogger.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Write-DebugLog" executed="True" result="Success" success="True" time="0.0711" asserts="0" description="Write-DebugLog">
+            <results>
+              <test-suite type="TestFixture" name="Write-DebugLog.When DebugMode is enabled" executed="True" result="Success" success="True" time="0.0337" asserts="0" description="Write-DebugLog.When DebugMode is enabled">
+                <results>
+                  <test-case description="Writes log file" name="Write-DebugLog.When DebugMode is enabled.Writes log file" time="0.0236" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Write-DebugLog.When DebugMode is disabled" executed="True" result="Success" success="True" time="0.0681" asserts="0" description="Write-DebugLog.When DebugMode is disabled">
+                <results>
+                  <test-case description="Does not write log file" name="Write-DebugLog.When DebugMode is disabled.Does not write log file" time="0.0266" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="/root/Forge-Cli/tests/Orchestrator.Tests.ps1" executed="True" result="Success" success="True" time="0.1091" asserts="0" description="/root/Forge-Cli/tests/Orchestrator.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Run-Agent" executed="True" result="Success" success="True" time="0.0923" asserts="0" description="Run-Agent">
+            <results>
+              <test-suite type="TestFixture" name="Run-Agent.With allowed tool" executed="True" result="Success" success="True" time="0.063" asserts="0" description="Run-Agent.With allowed tool">
+                <results>
+                  <test-case description="Processes allowed tool without error" name="Run-Agent.With allowed tool.Processes allowed tool without error" time="0.0596" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Run-Agent.With forbidden tool" executed="True" result="Success" success="True" time="0.0895" asserts="0" description="Run-Agent.With forbidden tool">
+                <results>
+                  <test-case description="Throws for forbidden tool" name="Run-Agent.With forbidden tool.Throws for forbidden tool" time="0.0226" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="/root/Forge-Cli/tests/RepoTools.Tests.ps1" executed="True" result="Success" success="True" time="0.175" asserts="0" description="/root/Forge-Cli/tests/RepoTools.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Search-Files" executed="True" result="Success" success="True" time="0.0364" asserts="0" description="Search-Files">
+            <results>
+              <test-suite type="TestFixture" name="Search-Files.With pattern" executed="True" result="Success" success="True" time="0.0338" asserts="0" description="Search-Files.With pattern">
+                <results>
+                  <test-case description="Returns array of file paths" name="Search-Files.With pattern.Returns array of file paths" time="0.0307" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Open-File" executed="True" result="Success" success="True" time="0.1554" asserts="0" description="Open-File">
+            <results>
+              <test-suite type="TestFixture" name="Open-File.With existing file" executed="True" result="Success" success="True" time="0.0799" asserts="0" description="Open-File.With existing file">
+                <results>
+                  <test-case description="Returns file content" name="Open-File.With existing file.Returns file content" time="0.0767" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Open-File.With missing file" executed="True" result="Success" success="True" time="0.1144" asserts="0" description="Open-File.With missing file">
+                <results>
+                  <test-case description="Returns FILE_NOT_FOUND" name="Open-File.With missing file.Returns FILE_NOT_FOUND" time="0.0254" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="/root/Forge-Cli/tests/TokenBudget.Tests.ps1" executed="True" result="Success" success="True" time="0.1196" asserts="0" description="/root/Forge-Cli/tests/TokenBudget.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Enforce-Budgets" executed="True" result="Success" success="True" time="0.0543" asserts="0" description="Enforce-Budgets">
+            <results>
+              <test-suite type="TestFixture" name="Enforce-Budgets.When within budgets" executed="True" result="Success" success="True" time="0.0172" asserts="0" description="Enforce-Budgets.When within budgets">
+                <results>
+                  <test-case description="Does not throw" name="Enforce-Budgets.When within budgets.Does not throw" time="0.0134" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Enforce-Budgets.When iteration token budget exceeded" executed="True" result="Success" success="True" time="0.0302" asserts="0" description="Enforce-Budgets.When iteration token budget exceeded">
+                <results>
+                  <test-case description="Throws with a clear message containing used and limit tokens" name="Enforce-Budgets.When iteration token budget exceeded.Throws with a clear message containing used and limit tokens" time="0.0099" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Enforce-Budgets.When total token budget exceeded" executed="True" result="Success" success="True" time="0.0366" asserts="0" description="Enforce-Budgets.When total token budget exceeded">
+                <results>
+                  <test-case description="Throws with a clear message containing total and limit tokens" name="Enforce-Budgets.When total token budget exceeded.Throws with a clear message containing total and limit tokens" time="0.0037" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Enforce-Budgets.When cost budget exceeded" executed="True" result="Success" success="True" time="0.0436" asserts="0" description="Enforce-Budgets.When cost budget exceeded">
+                <results>
+                  <test-case description="Throws with a clear message containing cost and component tokens" name="Enforce-Budgets.When cost budget exceeded.Throws with a clear message containing cost and component tokens" time="0.0044" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+              <test-suite type="TestFixture" name="Enforce-Budgets.When IterationStartTokens is invalid" executed="True" result="Success" success="True" time="0.0508" asserts="0" description="Enforce-Budgets.When IterationStartTokens is invalid">
+                <results>
+                  <test-case description="Rejects negative values" name="Enforce-Budgets.When IterationStartTokens is invalid.Rejects negative values" time="0.0046" asserts="0" success="True" result="Success" executed="True" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-TotalTokens" executed="True" result="Success" success="True" time="0.0594" asserts="0" description="Get-TotalTokens">
+            <results>
+              <test-case description="Returns correct sum" name="Get-TotalTokens.Returns correct sum" time="0.0026" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-CurrentCostGBP" executed="True" result="Success" success="True" time="0.0679" asserts="0" description="Get-CurrentCostGBP">
+            <results>
+              <test-case description="Returns correct cost" name="Get-CurrentCostGBP.Returns correct cost" time="0.0052" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Add-TokenUsage" executed="True" result="Success" success="True" time="0.0879" asserts="0" description="Add-TokenUsage">
+            <results>
+              <test-case description="Rejects negative values" name="Add-TokenUsage.Rejects negative values" time="0.0072" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="Rejects non-integer strings" name="Add-TokenUsage.Rejects non-integer strings" time="0.0094" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>

@@ -36,13 +36,13 @@ function Run-Agent {
 
         switch ($json.tool) {
             "search_files" {
-                if ($searches++ -ge $MAX_SEARCHES) { continue }
+                if ($searches++ -ge $MAX_SEARCHES) { return 'NO_CHANGES' }
                 $results = Search-Files $json.pattern
                 Write-DebugLog "$Role-search" ($results -join "`n")
                 $context += "`nSEARCH_RESULTS:`n$($results -join "`n")"
             }
             "open_file" {
-                if ($opens++ -ge $MAX_OPENS) { continue }
+                if ($opens++ -ge $MAX_OPENS) { return 'NO_CHANGES' }
                 $file = Open-File $json.path
                 $imports = Get-Imports $json.path
                 $ctors = Get-ConstructorDependencies $json.path
