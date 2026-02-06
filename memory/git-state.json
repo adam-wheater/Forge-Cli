@@ -1,82 +1,99 @@
 {
-  "branch": "ai-work",
-  "lastGoodCommit": "",
-  "diffStat": " 2 files changed, 4 insertions(+), 1 deletion(-)",
   "recentCommits": [
     {
-      "hash": "6492850",
-      "message": "Auto-restore stashed changes after rebase",
-      "author": "adam-wheater"
-    },
-    {
-      "hash": "0abff69",
-      "message": "Auto-restore stashed changes after rebase",
-      "author": "adam-wheater"
-    },
-    {
-      "hash": "50edf98",
-      "message": "Auto-restore stashed changes after rebase",
-      "author": "adam-wheater"
-    },
-    {
-      "hash": "6c4e171",
-      "message": "Auto-save: End of iteration 1",
-      "author": "adam-wheater"
-    },
-    {
-      "hash": "ea2a776",
       "message": "Merge branch 'ai-work'",
-      "author": "adam-wheater"
+      "author": "adam-wheater",
+      "hash": "6740cb5"
     },
     {
-      "hash": "d3a6dac",
       "message": "Auto-restore stashed changes after rebase",
-      "author": "adam-wheater"
+      "author": "adam-wheater",
+      "hash": "015db5a"
     },
     {
-      "hash": "d3bdffc",
       "message": "Copilot review iteration 1",
-      "author": "adam-wheater"
+      "author": "adam-wheater",
+      "hash": "b450d27"
     },
     {
-      "hash": "c8826cc",
       "message": "Copilot builders iteration 1 (normal)",
-      "author": "adam-wheater"
+      "author": "adam-wheater",
+      "hash": "607220a"
     },
     {
-      "hash": "168cfd4",
       "message": "Auto-restore stashed changes after rebase",
-      "author": "adam-wheater"
+      "author": "adam-wheater",
+      "hash": "6492850"
     },
     {
-      "hash": "2c56da9",
       "message": "Auto-restore stashed changes after rebase",
-      "author": "adam-wheater"
+      "author": "adam-wheater",
+      "hash": "0abff69"
     },
     {
-      "hash": "07f1263",
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater",
+      "hash": "50edf98"
+    },
+    {
+      "message": "Auto-save: End of iteration 1",
+      "author": "adam-wheater",
+      "hash": "6c4e171"
+    },
+    {
+      "message": "Merge branch 'ai-work'",
+      "author": "adam-wheater",
+      "hash": "ea2a776"
+    },
+    {
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater",
+      "hash": "d3a6dac"
+    },
+    {
+      "message": "Copilot review iteration 1",
+      "author": "adam-wheater",
+      "hash": "d3bdffc"
+    },
+    {
+      "message": "Copilot builders iteration 1 (normal)",
+      "author": "adam-wheater",
+      "hash": "c8826cc"
+    },
+    {
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater",
+      "hash": "168cfd4"
+    },
+    {
+      "message": "Auto-restore stashed changes after rebase",
+      "author": "adam-wheater",
+      "hash": "2c56da9"
+    },
+    {
       "message": "Add autonomous AI agent system, memory module, and test infrastructure",
-      "author": "adam-wheater"
-    },
-    {
-      "hash": "c23564c",
-      "message": "Initial commit: AI-powered test generation CLI",
-      "author": "adam-wheater"
-    }
-  ],
-  "uncommitted": [
-    {
-      "file": ".ai-metrics/ai-loop.log",
-      "status": "M"
-    },
-    {
-      "file": ".ai-metrics/status.txt",
-      "status": "M"
+      "author": "adam-wheater",
+      "hash": "07f1263"
     }
   ],
   "coChangePatterns": {
-    ".ai-metrics/ai-loop.log|memory/git-state.json": 2,
-    ".ai-metrics/status.txt|memory/git-state.json": 2,
-    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 3
-  }
+    ".ai-metrics/ai-loop.log|.ai-metrics/last.diff": 2,
+    ".ai-metrics/status.txt|memory/git-state.json": 3,
+    ".ai-metrics/ai-loop.log|memory/git-state.json": 3,
+    ".ai-metrics/last.diff|.ai-metrics/status.txt": 2,
+    ".ai-metrics/ai-loop.log|.ai-metrics/status.txt": 5
+  },
+  "uncommitted": [
+    {
+      "status": "M",
+      "file": ".ai-metrics/ai-loop.log"
+    },
+    {
+      "status": "M",
+      "file": ".ai-metrics/status.txt"
+    }
+  ],
+  "diffStat": " 2 files changed, 6 insertions(+), 1 deletion(-)",
+  "branch": "main",
+  "lastGoodCommit": ""
 }
