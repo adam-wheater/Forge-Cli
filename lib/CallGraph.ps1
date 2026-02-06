@@ -1,5 +1,5 @@
 function Get-ConstructorDependencies {
-    param ($Path)
+    param ([Parameter(Mandatory)][string]$Path)
     if (-not (Test-Path $Path)) { return @() }
 
     $content = Get-Content $Path -Raw

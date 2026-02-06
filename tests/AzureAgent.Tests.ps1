@@ -33,9 +33,54 @@ Describe 'Invoke-AzureAgent' {
         }
     }
     Context 'When API call fails' {
-        It 'Throws an exception' {
+        It 'Throws an exception after retries' {
             Mock -CommandName Invoke-RestMethod -MockWith { throw 'API error' }
-            { Invoke-AzureAgent -Deployment 'test' -SystemPrompt 'sys' -UserPrompt 'user' -MaxTokens 100 } | Should -Throw
+            Mock -CommandName Start-Sleep -MockWith { }
+            { Invoke-AzureAgent -Deployment 'test' -SystemPrompt 'sys' -UserPrompt 'user' -MaxTokens 100 } | Should -Throw '*after 3 attempts*'
+        }
+
+        It 'Retries on transient failure then succeeds' {
+            $script:callCount = 0
+            Mock -CommandName Invoke-RestMethod -MockWith {
+                $script:callCount++
+                if ($script:callCount -lt 2) { throw 'Transient error' }
+                @{ choices = @(@{ message = @{ content = 'Recovered' } }) }
+            }
+            Mock -CommandName Start-Sleep -MockWith { }
+            $result = Invoke-AzureAgent -Deployment 'test' -SystemPrompt 'sys' -UserPrompt 'user' -MaxTokens 100
+            $result | Should -Be 'Recovered'
+        }
+    }
+
+    Context 'When API returns empty choices' {
+        It 'Throws an exception' {
+            Mock -CommandName Invoke-RestMethod -MockWith {
+                @{ choices = @() }
+            }
+            { Invoke-AzureAgent -Deployment 'test' -SystemPrompt 'sys' -UserPrompt 'user' -MaxTokens 100 } | Should -Throw '*empty choices*'
+        }
+    }
+
+    Context 'When API returns null choices' {
+        It 'Throws an exception' {
+            Mock -CommandName Invoke-RestMethod -MockWith {
+                @{ choices = $null }
+            }
+            { Invoke-AzureAgent -Deployment 'test' -SystemPrompt 'sys' -UserPrompt 'user' -MaxTokens 100 } | Should -Throw '*empty choices*'
+        }
+    }
+
+    Context 'Parameter validation' {
+        It 'Requires Deployment parameter' {
+            { Invoke-AzureAgent -SystemPrompt 'sys' -UserPrompt 'user' } | Should -Throw
+        }
+
+        It 'Requires SystemPrompt parameter' {
+            { Invoke-AzureAgent -Deployment 'test' -UserPrompt 'user' } | Should -Throw
+        }
+
+        It 'Requires UserPrompt parameter' {
+            { Invoke-AzureAgent -Deployment 'test' -SystemPrompt 'sys' } | Should -Throw
         }
     }
 }

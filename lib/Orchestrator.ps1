@@ -14,14 +14,27 @@ $TOOL_PERMISSIONS = @{
 $MAX_SEARCHES = 6
 $MAX_OPENS = 5
 
+$MAX_AGENT_ITERATIONS = 20
+
 function Run-Agent {
-    param ($Role, $Deployment, $SystemPrompt, $InitialContext)
+    param (
+        [Parameter(Mandatory)][string]$Role,
+        [Parameter(Mandatory)][string]$Deployment,
+        [Parameter(Mandatory)][string]$SystemPrompt,
+        [Parameter(Mandatory)][string]$InitialContext
+    )
 
     $context = $InitialContext
     $searches = 0
     $opens = 0
+    $iterations = 0
 
     while ($true) {
+        if ($iterations++ -ge $MAX_AGENT_ITERATIONS) {
+            Write-DebugLog "$Role-limit" "Hit max iteration limit ($MAX_AGENT_ITERATIONS)"
+            return 'NO_CHANGES'
+        }
+
         $response = Invoke-AzureAgent $Deployment $SystemPrompt $context
         Write-DebugLog "$Role-response" $response
 
@@ -29,7 +42,18 @@ function Run-Agent {
             return $response
         }
 
-        $json = $response | ConvertFrom-Json
+        try {
+            $json = $response | ConvertFrom-Json
+        } catch {
+            Write-DebugLog "$Role-parse-error" "Failed to parse response as JSON: $($_.Exception.Message)"
+            return 'NO_CHANGES'
+        }
+
+        if (-not $json.tool) {
+            Write-DebugLog "$Role-no-tool" "Response JSON missing 'tool' field"
+            return 'NO_CHANGES'
+        }
+
         if (-not ($TOOL_PERMISSIONS[$Role] -contains $json.tool)) {
             throw "Forbidden tool $($json.tool) for role $Role"
         }
@@ -55,6 +79,10 @@ function Run-Agent {
                 $diff = Show-Diff
                 Write-DebugLog "$Role-diff" $diff
                 $context += "`nDIFF:`n$diff"
+            }
+            default {
+                Write-DebugLog "$Role-unknown-tool" "Unknown tool: $($json.tool)"
+                return 'NO_CHANGES'
             }
         }
     }

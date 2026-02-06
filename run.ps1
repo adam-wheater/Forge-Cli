@@ -8,12 +8,23 @@ param (
 
 if (-not $RepoUrl) { throw "RepoUrl is required." }
 
+$requiredEnvVars = @('AZURE_OPENAI_ENDPOINT', 'AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_API_VERSION', 'BUILDER_DEPLOYMENT', 'JUDGE_DEPLOYMENT')
+foreach ($var in $requiredEnvVars) {
+    if (-not (Get-Item "env:$var" -ErrorAction SilentlyContinue)) {
+        throw "Required environment variable $var is not set."
+    }
+}
+
 . "$PSScriptRoot/lib/DebugLogger.ps1"
 Init-Debug $DebugMode
 
 git clone $RepoUrl
+if ($LASTEXITCODE -ne 0) { throw "git clone failed for $RepoUrl (exit code $LASTEXITCODE)" }
+
 Set-Location $RepoName
+
 git checkout -b $Branch
+if ($LASTEXITCODE -ne 0) { throw "git checkout -b $Branch failed (exit code $LASTEXITCODE)" }
 
 . "$PSScriptRoot/lib/Orchestrator.ps1"
 . "$PSScriptRoot/lib/RepoMemory.ps1"
@@ -54,6 +65,12 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
 
     $chosen | Out-File ai.patch -Encoding utf8
     git apply ai.patch
+    if ($LASTEXITCODE -ne 0) {
+        Write-DebugLog "apply-failed" "git apply failed (exit code $LASTEXITCODE)"
+        Save-RunState -Iteration $i -BuildOk $false -TestOk $false `
+            -Attempts @($hypotheses) -DiffSummary "git apply failed"
+        continue
+    }
     Write-DebugLog "applied-diff" (git diff)
 
     $buildOk = $true
@@ -112,6 +129,10 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     Update-CodeIntel (Get-Location)
 
     git commit -am "AI: generate and fix unit tests"
+    if ($LASTEXITCODE -ne 0) {
+        Write-DebugLog "commit-failed" "git commit failed (exit code $LASTEXITCODE)"
+        throw "git commit failed after successful tests (exit code $LASTEXITCODE)"
+    }
     Write-Host "✅ SUCCESS"
     exit 0
 }

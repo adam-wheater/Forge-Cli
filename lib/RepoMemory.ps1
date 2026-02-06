@@ -1,12 +1,12 @@
 $Global:MemoryRoot = Join-Path $PSScriptRoot ".." "memory"
 
 function Get-MemoryPath {
-    param ([string]$FileName)
+    param ([Parameter(Mandatory)][string]$FileName)
     Join-Path $Global:MemoryRoot $FileName
 }
 
 function Read-MemoryFile {
-    param ([string]$FileName)
+    param ([Parameter(Mandatory)][string]$FileName)
     $path = Get-MemoryPath $FileName
     if (Test-Path $path) {
         Get-Content $path -Raw | ConvertFrom-Json
@@ -16,7 +16,7 @@ function Read-MemoryFile {
 }
 
 function Write-MemoryFile {
-    param ([string]$FileName, $Data)
+    param ([Parameter(Mandatory)][string]$FileName, [Parameter(Mandatory)]$Data)
     $path = Get-MemoryPath $FileName
     $dir = Split-Path $path -Parent
     if (-not (Test-Path $dir)) {
@@ -163,7 +163,9 @@ function Update-CodeIntel {
         if ($gitChanges) {
             $intel.recentlyChanged = @($gitChanges)
         }
-    } catch { }
+    } catch {
+        Write-Warning "Failed to read git log for recent changes: $($_.Exception.Message)"
+    }
 
     Write-MemoryFile "code-intel.json" $intel
     return $intel
@@ -371,7 +373,9 @@ function Update-GitMemory {
         }
         $git.coChangePatterns = $filtered
 
-    } catch { }
+    } catch {
+        Write-Warning "Failed to update git memory: $($_.Exception.Message)"
+    }
 
     Write-MemoryFile "git-state.json" $git
     return $git
@@ -404,7 +408,9 @@ function Get-BlameForFile {
                 $results += @{ hash = $parts[0]; author = $parts[1]; when = $parts[2] }
             }
         }
-    } catch { }
+    } catch {
+        Write-Warning "Failed to get blame for ${FilePath}: $($_.Exception.Message)"
+    }
 
     return $results
 }

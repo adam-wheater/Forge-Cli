@@ -1,5 +1,5 @@
 function Get-Imports {
-    param ($Path)
+    param ([Parameter(Mandatory)][string]$Path)
     if (-not (Test-Path $Path)) { return @() }
 
     Get-Content $Path |

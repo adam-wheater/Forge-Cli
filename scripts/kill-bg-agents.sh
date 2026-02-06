@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -uo pipefail
 # Kill background AI agents, copilot processes, and orphaned build processes
 # Preserves the current interactive Claude session (pts terminal sessions)
 

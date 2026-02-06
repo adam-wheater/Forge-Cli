@@ -9,7 +9,10 @@ $Global:COMPLETION_COST_PER_1K = 0.006
 $Global:MAX_COST_GBP = 25.00
 
 function Add-TokenUsage {
-    param ($Prompt, $Completion)
+    param (
+        [Parameter(Mandatory)][int]$Prompt,
+        [Parameter(Mandatory)][int]$Completion
+    )
     if ([int]$Prompt -lt 0 -or [int]$Completion -lt 0) {
         throw "Token values must be non-negative integers."
     }

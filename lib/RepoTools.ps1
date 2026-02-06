@@ -1,7 +1,7 @@
 . "$PSScriptRoot/RelevanceTracker.ps1"
 
 function Score-File {
-    param ($Path)
+    param ([Parameter(Mandatory)][string]$Path)
 
     $score = 0
     if ($Path -match 'Test|Tests') { $score += 50 }
@@ -13,7 +13,7 @@ function Score-File {
 }
 
 function Search-Files {
-    param ($Pattern)
+    param ([Parameter(Mandatory)]$Pattern)
 
     if ($Pattern -is [Array]) {
         return ($Pattern | ForEach-Object { Search-Files $_ }) | Select-Object -Unique
@@ -30,7 +30,7 @@ function Search-Files {
 }
 
 function Open-File {
-    param ($Path, $MaxLines = 400)
+    param ([Parameter(Mandatory)][string]$Path, [int]$MaxLines = 400)
 
     if (-not (Test-Path $Path)) { return "FILE_NOT_FOUND" }
     Mark-Relevant $Path
