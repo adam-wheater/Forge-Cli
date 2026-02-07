@@ -5,6 +5,8 @@
 - [x] **C93 — Add error handling for missing file in RepoMemory.ps1** — lib/RepoMemory.ps1 L166
 - [x] **C94 — Add logging to empty catch block in RepoMemory.ps1** — lib/RepoMemory.ps1 L374
 - [x] **C95 — Add logging to empty catch block in RepoMemory.ps1** — lib/RepoMemory.ps1 L407
+- [ ] **C100 — Add error handling for subprocess calls in copilot-startup-check.sh** — scripts/copilot-startup-check.sh L39
+- [ ] **C101 — Add warning log to all catch blocks in RepoMemory.ps1** — lib/RepoMemory.ps1 L166, L374, L407, L411
 - [x] **C58 — Add completion check for TODO.md in idle mode** — ai-autonomous-loop-macos-copilot.sh L734
 - [x] **C59 — Ensure all error budget checks in TokenBudget.ps1 throw with clear messages** — lib/TokenBudget.ps1 L30
 - [x] **C60 — Add forbidden tool error handling in Orchestrator.ps1** — lib/Orchestrator.ps1 L34
