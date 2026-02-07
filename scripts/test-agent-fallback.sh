@@ -454,9 +454,9 @@ test_fallback_chain_config() {
   echo -e "\n${YELLOW}TEST 11: Fallback chain configuration${NC}"
 
   # Check that the script has proper chain configuration
-  if grep -q "CLAUDE_BUILDER_CHAIN" "$ROOT_DIR/ai-autonomous-loop-macos-copilot.sh" && \
-     grep -q "COPILOT_BUILDER_CHAIN" "$ROOT_DIR/ai-autonomous-loop-macos-copilot.sh" && \
-     grep -q "COPILOT_FREE_MODEL" "$ROOT_DIR/ai-autonomous-loop-macos-copilot.sh"; then
+  if grep -q "CLAUDE_BUILDER_CHAIN" "$ROOT_DIR/vibe/ai-autonomous-loop-macos-copilot.sh" && \
+     grep -q "COPILOT_BUILDER_CHAIN" "$ROOT_DIR/vibe/ai-autonomous-loop-macos-copilot.sh" && \
+     grep -q "COPILOT_FREE_MODEL" "$ROOT_DIR/vibe/ai-autonomous-loop-macos-copilot.sh"; then
     pass "Fallback chain configuration present"
   else
     fail "Fallback chain configuration missing"
@@ -499,7 +499,7 @@ test_state_files() {
 test_script_syntax() {
   echo -e "\n${YELLOW}TEST 13: Script syntax validation${NC}"
 
-  if bash -n "$ROOT_DIR/ai-autonomous-loop-macos-copilot.sh" 2>&1; then
+  if bash -n "$ROOT_DIR/vibe/ai-autonomous-loop-macos-copilot.sh" 2>&1; then
     pass "Shell script syntax is valid"
   else
     fail "Shell script has syntax errors"

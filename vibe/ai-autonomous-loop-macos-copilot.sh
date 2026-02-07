@@ -302,16 +302,19 @@ bootstrap_dependencies
 # Resolve project directory
 # ----------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$SCRIPT_DIR"
+PROJECT_DIR="$(cd "$SCRIPT_DIR" && git rev-parse --show-toplevel 2>/dev/null || echo "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
-STATE_DIR="${STATE_DIR:-.ai-metrics}"
+STATE_DIR="${STATE_DIR:-$SCRIPT_DIR/.ai-metrics}"
+
+# Ensure script stays executable (editors/tools may strip the bit)
+chmod +x "$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")" 2>/dev/null
 
 find_first_match() {
   local pattern="$1"
   find "$PROJECT_DIR" \
     \( -path "$PROJECT_DIR/.git" -o -path "$PROJECT_DIR/.git/*" \
-       -o -path "$PROJECT_DIR/$STATE_DIR" -o -path "$PROJECT_DIR/$STATE_DIR/*" \
+       -o -path "$STATE_DIR" -o -path "$STATE_DIR/*" \
        -o -path "$PROJECT_DIR/bin" -o -path "$PROJECT_DIR/bin/*" \
        -o -path "$PROJECT_DIR/obj" -o -path "$PROJECT_DIR/obj/*" \
        -o -path "$PROJECT_DIR/node_modules" -o -path "$PROJECT_DIR/node_modules/*" \
@@ -2803,7 +2806,7 @@ if [ "${AI_LOOP_FOREGROUND:-0}" != "1" ] && [ "${TMUX_ATTACH:-0}" != "1" ]; then
   export ITER LOG_FILE STATUS_FILE STATE_DIR PROJECT_DIR
 
   # Start the loop in background
-  nohup "$0" >> "$LOG_FILE" 2>&1 &
+  nohup "$SCRIPT_DIR/$(basename "$0")" >> "$LOG_FILE" 2>&1 &
   LOOP_PID=$!
   echo "$LOOP_PID" > "$STATE_DIR/loop.pid"
 
@@ -3292,7 +3295,7 @@ run_main_loop() {
   log_progress "RESTART" "Restarting script for clean memory (next iteration: $ITER)"
 
   # exec replaces current process - releases all memory
-  exec "$0" "$@"
+  exec "$SCRIPT_DIR/$(basename "$0")" "$@"
   done
 }
 
