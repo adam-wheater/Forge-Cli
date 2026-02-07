@@ -13,13 +13,13 @@ Test and utility scripts for the Forge CLI autonomous agent system.
 
 ```bash
 # Run fallback mechanism tests
-./scripts/test-agent-fallback.sh
+./vibe/scripts/test-agent-fallback.sh
 
 # Run Copilot smoke test
-./scripts/copilot-smoke.sh
+./vibe/scripts/copilot-smoke.sh
 
 # Check Copilot CLI startup
-COPILOT_MODEL=gpt-4.1 ./scripts/copilot-startup-check.sh
+COPILOT_MODEL=gpt-4.1 ./vibe/scripts/copilot-startup-check.sh
 ```
 
 ## Environment Variables

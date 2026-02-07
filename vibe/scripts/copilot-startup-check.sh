@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # Quick Copilot CLI startup sanity check.
-# Usage: COPILOT_MODEL=gpt-4.1 ./scripts/copilot-startup-check.sh
+# Usage: COPILOT_MODEL=gpt-4.1 ./vibe/scripts/copilot-startup-check.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$ROOT_DIR"
 
 COPILOT_CMD="${COPILOT_CMD:-$(command -v copilot || true)}"
