@@ -36,6 +36,7 @@
 - [x] **C90 — Add forbidden tool error handling for missing permissions in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L120
 - [ ] **C91 — Add completion check for all task streams in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L740
 - [ ] **C96 — Add completion check for README.md in idle mode** — ai-autonomous-loop-macos-copilot.sh L734
+- [ ] **C99 — Add error handling for subprocess calls in copilot-startup-check.sh** — scripts/copilot-startup-check.sh L39
 - [ ] **C97 — Add error handling for context resource registry lookup in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L120
 
 ## D stream: New features
