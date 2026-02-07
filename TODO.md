@@ -19,8 +19,8 @@
 - [x] **C69 — Ensure exit codes are handled in test-agent-fallback.sh** — scripts/test-agent-fallback.sh L96 (test stub, not production code)
 - [x] **C70 — Ensure exit codes are handled in test-agent-fallback.sh** — scripts/test-agent-fallback.sh L118 (test stub, not production code)
 - [x] **C74 — Remove unused key variable assignments in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L1092
-- [ ] **C75 — Remove unused variable 'langs' in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L1117
-- [ ] **C76 — Remove unused variable 'basename_set' in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L1125
+- [x] **C75 — Remove unused variable 'langs' in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L1117
+- [x] **C76 — Remove unused variable 'basename_set' in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L1125
 - [x] **C78 — Remove unused variable 'DETECTED_LANGUAGES' in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L1134
 - [x] **C79 — Replace hardcoded 'api-key' header with secure Authorization Bearer token in AzureAgent.ps1** — lib/AzureAgent.ps1 L24
 - [x] **C80 — Add null check for API response before accessing .choices[0] in AzureAgent.ps1** — lib/AzureAgent.ps1 L35
