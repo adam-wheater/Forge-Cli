@@ -2418,9 +2418,10 @@ checkout_main_branch() {
   if [ "$stash_needed" -eq 1 ]; then
     log "Restoring stashed changes..."
     if ! git stash pop; then
-      log "Stash pop failed - resolving conflicts and committing..."
-      # Resolve any conflicts by accepting current (rebased) version
-      git checkout --theirs . 2>/dev/null || true
+      log "Stash pop failed - force-applying stashed changes..."
+      # stash pop can fail without starting a merge (e.g. "local changes would
+      # be overwritten").  Force-apply the stash contents over the working tree.
+      git checkout stash@{0} -- . 2>/dev/null || true
       git add -A
       if ! git diff --cached --quiet; then
         if ! git commit -m "Auto-restore stashed changes after rebase"; then

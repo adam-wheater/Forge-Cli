@@ -1,0 +1,18 @@
+# Runtime state (AI loop metrics, PIDs, logs)
+vibe/.ai-metrics/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PowerShell
+*.psm1.bak
+
+# .NET build artifacts
+bin/
+obj/
+*.user
+*.suo
+
+# Node
+node_modules/
