@@ -2166,7 +2166,7 @@ Scan the codebase and add new issues to TODO.md:
 
 Rules:
 - NEVER scan, reference, or add issues about files in the vibe/ folder. It is off-limits.
-- Only scan files in: lib/, agents/, scripts/, tests/, and root .ps1 files.
+- Only scan files in: lib/, agents/, tests/, and root .ps1 files.
 - Only add REAL issues with file:line evidence
 - No duplicates
 - Sequential IDs within each stream
@@ -2526,9 +2526,9 @@ run_tests() {
     fi
 
     # Run agent fallback tests if present
-    if [ -x "$PROJECT_DIR/scripts/test-agent-fallback.sh" ]; then
+    if [ -x "$SCRIPT_DIR/scripts/test-agent-fallback.sh" ]; then
       echo "INFO: Running agent fallback tests..." >&2
-      bash "$PROJECT_DIR/scripts/test-agent-fallback.sh" || return 1
+      bash "$SCRIPT_DIR/scripts/test-agent-fallback.sh" || return 1
     fi
 
     echo "INFO: PowerShell tests completed." >&2
