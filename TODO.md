@@ -1,6 +1,7 @@
 # TODO
 
 ## C stream: Bug fixes
+- [ ] **C102 — Ensure all test scripts in scripts/ and tests/ are covered by at least one E-stream test** — run.ps1 L13
 - [x] **C92 — Add logging to all empty catch blocks in RepoMemory.ps1** — lib/RepoMemory.ps1 L166, L374, L407
 - [x] **C93 — Add error handling for missing file in RepoMemory.ps1** — lib/RepoMemory.ps1 L166
 - [x] **C94 — Add logging to empty catch block in RepoMemory.ps1** — lib/RepoMemory.ps1 L374
