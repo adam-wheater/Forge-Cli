@@ -1,6 +1,9 @@
 # TODO
 
 ## C stream: Bug fixes
+- [ ] **C106 — Add error handling for missing or failed git log/blame calls in RepoMemory.ps1** — lib/RepoMemory.ps1 L162, L393, L405
+- [ ] **C107 — Add error handling for Write-MemoryFile failures in RepoMemory.ps1** — lib/RepoMemory.ps1 L170, L380
+- [ ] **C108 — Add error handling for file not found in Get-BlameForFile in RepoMemory.ps1** — lib/RepoMemory.ps1 L395, L405
 - [ ] **C102 — Ensure all test scripts in scripts/ and tests/ are covered by at least one E-stream test** — run.ps1 L13
 - [x] **C92 — Add logging to all empty catch blocks in RepoMemory.ps1** — lib/RepoMemory.ps1 L166, L374, L407
 - [x] **C93 — Add error handling for missing file in RepoMemory.ps1** — lib/RepoMemory.ps1 L166
