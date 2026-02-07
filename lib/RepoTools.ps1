@@ -6,7 +6,11 @@ function Score-File {
     $score = 0
     if ($Path -match 'Test|Tests') { $score += 50 }
     if ($Path -match 'Service|Controller|Manager|Repository|Repo') { $score += 15 }
-    if ($Path -match '\.cs') { $score += 5 }
+    if ($Path -match '\.cs$') { $score += 5 }
+    if ($Path -match '\.ps1$') { $score += 5 }
+    if ($Path -match '\.Tests\.ps1$') { $score += 50 }
+    if ($Path -match 'Module|Orchestrator|Agent') { $score += 15 }
+    if ($Path -match '\.system\.txt$') { $score += 10 }
     if ($Path -match 'Program|Startup') { $score -= 10 }
     $score -= (Get-RelevanceScore $Path)
     $score

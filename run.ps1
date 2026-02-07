@@ -8,6 +8,11 @@ param (
 
 if (-not $RepoUrl) { throw "RepoUrl is required." }
 
+# C113: Default RepoName from RepoUrl when not provided
+if (-not $RepoName) {
+    $RepoName = ($RepoUrl -replace '\.git$','') -replace '.*/',''
+}
+
 $requiredEnvVars = @('AZURE_OPENAI_ENDPOINT', 'AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_API_VERSION', 'BUILDER_DEPLOYMENT', 'JUDGE_DEPLOYMENT')
 foreach ($var in $requiredEnvVars) {
     if (-not (Get-Item "env:$var" -ErrorAction SilentlyContinue)) {
@@ -40,17 +45,40 @@ $toolsBase      = Get-Content "$PSScriptRoot/agents/tools.system.txt" -Raw
 
 for ($i = 1; $i -le $MaxLoops; $i++) {
     Write-Host "=== ITERATION $i ==="
+
+    # C110: Reset working tree to prevent failed patches from accumulating
+    git checkout -- .
+    if ($LASTEXITCODE -ne 0) {
+        Write-DebugLog "git-reset-failed" "git checkout -- . failed (exit code $LASTEXITCODE)"
+    }
+
+    # C114: Clean up stale patch files between iterations
+    Remove-Item ai.patch -ErrorAction SilentlyContinue
+
     $iterationStart = Get-TotalTokens
 
     # Load compressed memory summary and inject into context
     $memorySummary = Get-MemorySummary
     $context = $toolsBase + "`n" + $memorySummary
 
+    # D16: Use Get-SuggestedFix to inform builder hypotheses
+    $prevState = Read-MemoryFile "run-state.json"
+    $sugFailedTests = @()
+    $sugFailedFiles = @()
+    if ($prevState) {
+        $sugFailedTests = @($prevState.lastFailures)
+        $sugFailedFiles = @($prevState.recentFiles)
+    }
+    $suggestion = Get-SuggestedFix -FailedTests $sugFailedTests -FailedFiles $sugFailedFiles
+
     $hypotheses = @(
         "Fix failing tests",
         "Fix core services under test",
         "Fix test setup or mocks"
     )
+    if ($suggestion) {
+        $hypotheses += $suggestion
+    }
 
     $patches = @()
     foreach ($h in $hypotheses) {
@@ -63,12 +91,30 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     $chosen = Invoke-AzureAgent $env:JUDGE_DEPLOYMENT $judgePrompt $judgeInput
     Write-DebugLog "judge-choice" $chosen
 
+    # C109: Wire up reviewer agent after judge, before git apply
+    $reviewerDeployment = if ($env:REVIEWER_DEPLOYMENT) { $env:REVIEWER_DEPLOYMENT } else { $env:JUDGE_DEPLOYMENT }
+    $reviewed = Run-Agent "reviewer" $reviewerDeployment $reviewerPrompt "Review this patch:`n$chosen"
+    Write-DebugLog "reviewer-output" $reviewed
+    if ($reviewed -and $reviewed -ne "NO_CHANGES") {
+        $chosen = $reviewed
+    }
+
+    # C111: Validate judge output is a valid unified diff before applying
+    if ($chosen -notmatch '^(diff --git|---)') {
+        Write-DebugLog "invalid-patch" "Chosen patch is not a valid unified diff"
+        Save-RunState -Iteration $i -BuildOk $false -TestOk $false `
+            -Attempts @($hypotheses) -DiffSummary "Invalid patch format"
+        Enforce-Budgets $iterationStart
+        continue
+    }
+
     $chosen | Out-File ai.patch -Encoding utf8
     git apply ai.patch
     if ($LASTEXITCODE -ne 0) {
         Write-DebugLog "apply-failed" "git apply failed (exit code $LASTEXITCODE)"
         Save-RunState -Iteration $i -BuildOk $false -TestOk $false `
             -Attempts @($hypotheses) -DiffSummary "git apply failed"
+        Enforce-Budgets $iterationStart
         continue
     }
     Write-DebugLog "applied-diff" (git diff)
@@ -76,18 +122,29 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     $buildOk = $true
     $testOk = $true
 
-    dotnet build
-    if ($LASTEXITCODE -ne 0) {
-        $buildOk = $false
-        # Save run state with build failure
-        Save-RunState -Iteration $i -BuildOk $false -TestOk $false `
-            -Attempts @($hypotheses) `
-            -DiffSummary "Build failed after applying patch"
-        Update-CodeIntel (Get-Location)
-        continue
+    # D15: Support PowerShell project build/test
+    if ($repoMap.projectType -eq "powershell") {
+        # PowerShell projects have no build step
+        Write-DebugLog "build-skip" "PowerShell project — no build step required"
+    } else {
+        dotnet build
+        if ($LASTEXITCODE -ne 0) {
+            $buildOk = $false
+            # Save run state with build failure
+            Save-RunState -Iteration $i -BuildOk $false -TestOk $false `
+                -Attempts @($hypotheses) `
+                -DiffSummary "Build failed after applying patch"
+            Update-CodeIntel (Get-Location)
+            Enforce-Budgets $iterationStart
+            continue
+        }
     }
 
-    $testOutput = dotnet test 2>&1 | Out-String
+    if ($repoMap.projectType -eq "powershell") {
+        $testOutput = Invoke-Pester -PassThru 2>&1 | Out-String
+    } else {
+        $testOutput = dotnet test 2>&1 | Out-String
+    }
     Write-DebugLog "test-output" $testOutput
 
     if ($LASTEXITCODE -ne 0) {
@@ -127,6 +184,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     Save-RunState -Iteration $i -BuildOk $true -TestOk $true `
         -DiffSummary "Tests passed on iteration $i"
     Update-CodeIntel (Get-Location)
+    Enforce-Budgets $iterationStart
 
     git commit -am "AI: generate and fix unit tests"
     if ($LASTEXITCODE -ne 0) {
