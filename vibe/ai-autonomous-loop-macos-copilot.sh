@@ -443,9 +443,10 @@ COPILOT_DEFAULT_MODEL="${COPILOT_DEFAULT_MODEL:-gpt-5.2}"
 : "${COPILOT_FREE_MODEL:=gpt-4.1}"
 : "${CLAUDE_CMD:=$(command -v claude || true)}"
 : "${CLAUDE_MODEL:=claude-sonnet-4-20250514}"
-# Permission bypass: use --permission-mode for root, --dangerously-skip-permissions otherwise
+# Permission bypass: use --permission-mode for root (bypassPermissions is rejected),
+# --dangerously-skip-permissions otherwise
 if [ "$(id -u)" -eq 0 ]; then
-  : "${CLAUDE_ARGS:=--permission-mode bypassPermissions}"
+  : "${CLAUDE_ARGS:=--permission-mode acceptEdits}"
 else
   : "${CLAUDE_ARGS:=--dangerously-skip-permissions}"
 fi
@@ -621,8 +622,9 @@ cleanup_zombie_processes() {
   # They are removed when their parent calls wait() or when the parent dies.
   # Count them for logging purposes only.
   local zombie_count
-  zombie_count=$(ps aux 2>/dev/null | grep -c '\[claude\].*<defunct>' || echo "0")
-  if [ "$zombie_count" -gt 0 ]; then
+  zombie_count=$(ps aux 2>/dev/null | grep -c '\[claude\].*<defunct>' || true)
+  zombie_count="${zombie_count:-0}"
+  if [ "$zombie_count" -gt 0 ] 2>/dev/null; then
     log "  Note: $zombie_count zombie processes exist (will be reaped when parent exits)"
   fi
 
@@ -2074,7 +2076,7 @@ Do not ask questions. Apply changes directly.${memory_block}"
   local bugfix_prompt
   bugfix_prompt="$(append_skill_context "$base_bugfix")"
   bugfix_prompt="$(limit_prompt_size "$bugfix_prompt")"
-  run_pipeline "builder" "bugfix-builder" "$COPILOT_BUILDER_CHAIN" "$bugfix_prompt" || true
+  run_pipeline "builder" "bugfix-builder" "$CLAUDE_BUILDER_CHAIN" "$bugfix_prompt" || true
 
   # Feature Builder - picks D-stream items from TODO.md
   local base_feature="You are the Feature Builder.
@@ -2085,7 +2087,7 @@ Do not ask questions. Apply changes directly.${memory_block}"
   local feature_prompt
   feature_prompt="$(append_skill_context "$base_feature")"
   feature_prompt="$(limit_prompt_size "$feature_prompt")"
-  run_pipeline "builder" "feature-builder" "$COPILOT_BUILDER_CHAIN" "$feature_prompt" || true
+  run_pipeline "builder" "feature-builder" "$CLAUDE_BUILDER_CHAIN" "$feature_prompt" || true
 
   # Test Builder - picks E-stream items from TODO.md
   local base_test="You are the Test Builder.
@@ -2096,7 +2098,7 @@ Do not ask questions. Apply changes directly.${memory_block}"
   local test_prompt
   test_prompt="$(append_skill_context "$base_test")"
   test_prompt="$(limit_prompt_size "$test_prompt")"
-  run_pipeline "builder" "test-builder" "$COPILOT_BUILDER_CHAIN" "$test_prompt" || true
+  run_pipeline "builder" "test-builder" "$CLAUDE_BUILDER_CHAIN" "$test_prompt" || true
 
   # General Improver - picks any unchecked item
   local base_improver="You are the Improver.
@@ -2106,7 +2108,7 @@ Do not ask questions. Apply changes directly.${memory_block}"
   local improver_prompt
   improver_prompt="$(append_skill_context "$base_improver")"
   improver_prompt="$(limit_prompt_size "$improver_prompt")"
-  run_pipeline "builder" "improver" "$COPILOT_BUILDER_CHAIN" "$improver_prompt" || true
+  run_pipeline "builder" "improver" "$CLAUDE_BUILDER_CHAIN" "$improver_prompt" || true
 }
 
 run_reviewer_prompt() {
@@ -2135,7 +2137,7 @@ Current mode: $mode.
   reviewer_prompt="$(append_skill_context "$base_prompt")"
   reviewer_prompt="$(limit_prompt_size "$reviewer_prompt")"
 
-  run_pipeline "review" "$role" "$COPILOT_REVIEW_CHAIN" "$reviewer_prompt" || true
+  run_pipeline "review" "$role" "$CLAUDE_REVIEW_CHAIN" "$reviewer_prompt" || true
 }
 
 run_backlog_groomer_prompt() {
@@ -2167,7 +2169,7 @@ Rules:
   groomer_prompt="$(append_skill_context "$base_prompt")"
   groomer_prompt="$(limit_prompt_size "$groomer_prompt")"
 
-  run_pipeline "review" "backlog-groomer" "$COPILOT_REVIEW_CHAIN" "$groomer_prompt" || true
+  run_pipeline "review" "backlog-groomer" "$CLAUDE_REVIEW_CHAIN" "$groomer_prompt" || true
 }
 
 wait_for_tmux_completion() {
@@ -2461,6 +2463,10 @@ run_build() {
   # PowerShell project: validate syntax
   if [ "$IS_POWERSHELL_PROJECT" -eq 1 ]; then
     echo "INFO: PowerShell project detected; validating script syntax." >&2
+    if ! command -v pwsh &>/dev/null; then
+      echo "INFO: pwsh not available; skipping PowerShell syntax validation." >&2
+      return 0
+    fi
     local ps1_errors=0
     while IFS= read -r ps1_file; do
       if ! pwsh -NoProfile -Command "try { \$null = [System.Management.Automation.Language.Parser]::ParseFile('$ps1_file', [ref]\$null, [ref]\$null) } catch { exit 1 }" 2>/dev/null; then
