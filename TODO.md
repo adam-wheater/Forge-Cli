@@ -41,6 +41,9 @@
 - [ ] **C96 — Add completion check for README.md in idle mode** — ai-autonomous-loop-macos-copilot.sh L734
 - [ ] **C99 — Add error handling for subprocess calls in copilot-startup-check.sh** — scripts/copilot-startup-check.sh L39
 - [ ] **C97 — Add error handling for context resource registry lookup in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L120
+- [ ] **C103 — Add error handling for git log and blame calls in RepoMemory.ps1** — lib/RepoMemory.ps1 L162, L393, L405
+- [ ] **C104 — Add error handling for Write-MemoryFile in RepoMemory.ps1** — lib/RepoMemory.ps1 L170, L380
+- [ ] **C105 — Add error handling for file not found in Get-BlameForFile in RepoMemory.ps1** — lib/RepoMemory.ps1 L395, L405
 
 ## D stream: New features
 - [x] **D10 — Add retry mechanism with exponential backoff for Azure OpenAI API calls** — lib/AzureAgent.ps1
