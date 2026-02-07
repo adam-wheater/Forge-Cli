@@ -33,7 +33,7 @@
 - [x] **C87 — Add git commit error handling in run.ps1** — run.ps1 L65
 - [x] **C88 — Add path sanitization to prevent directory traversal in DebugLogger.ps1** — lib/DebugLogger.ps1 L17
 - [x] **C89 — Add catch block logging for all try/catch in RepoMemory.ps1** — lib/RepoMemory.ps1 L100
-- [ ] **C90 — Add forbidden tool error handling for missing permissions in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L120
+- [x] **C90 — Add forbidden tool error handling for missing permissions in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L120
 - [ ] **C91 — Add completion check for all task streams in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L740
 - [ ] **C96 — Add completion check for README.md in idle mode** — ai-autonomous-loop-macos-copilot.sh L734
 - [ ] **C97 — Add error handling for context resource registry lookup in ai-autonomous-loop-macos-copilot.sh** — ai-autonomous-loop-macos-copilot.sh L120
