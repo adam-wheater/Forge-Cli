@@ -16,6 +16,20 @@ $MAX_OPENS = 5
 
 $MAX_AGENT_ITERATIONS = 20
 
+function New-AgentError {
+    param (
+        [Parameter(Mandatory)][string]$Type,
+        [Parameter(Mandatory)][string]$Role,
+        [Parameter(Mandatory)][string]$Message
+    )
+    return @{
+        type      = $Type
+        role      = $Role
+        message   = $Message
+        timestamp = (Get-Date).ToUniversalTime().ToString("o")
+    }
+}
+
 function Run-Agent {
     param (
         [Parameter(Mandatory)][string]$Role,
@@ -46,12 +60,12 @@ function Run-Agent {
             $json = $response | ConvertFrom-Json
         } catch {
             Write-DebugLog "$Role-parse-error" "Failed to parse response as JSON: $($_.Exception.Message)"
-            return 'NO_CHANGES'
+            return (New-AgentError -Type "parse_error" -Role $Role -Message "Failed to parse response as JSON: $($_.Exception.Message)")
         }
 
         if (-not $json.tool) {
             Write-DebugLog "$Role-no-tool" "Response JSON missing 'tool' field"
-            return 'NO_CHANGES'
+            return (New-AgentError -Type "no_tool" -Role $Role -Message "Response JSON missing 'tool' field")
         }
 
         if (-not ($TOOL_PERMISSIONS[$Role] -contains $json.tool)) {
@@ -82,7 +96,7 @@ function Run-Agent {
             }
             default {
                 Write-DebugLog "$Role-unknown-tool" "Unknown tool: $($json.tool)"
-                return 'NO_CHANGES'
+                return (New-AgentError -Type "unknown_tool" -Role $Role -Message "Unknown tool: $($json.tool)")
             }
         }
     }

@@ -1,9 +1,9 @@
 # TODO
 
 ## C stream: Bug fixes
-- [ ] **C106 — Add error handling for missing or failed git log/blame calls in RepoMemory.ps1** — lib/RepoMemory.ps1 L162, L393, L405
-- [ ] **C107 — Add error handling for Write-MemoryFile failures in RepoMemory.ps1** — lib/RepoMemory.ps1 L170, L380
-- [ ] **C108 — Add error handling for file not found in Get-BlameForFile in RepoMemory.ps1** — lib/RepoMemory.ps1 L395, L405
+- [x] **C106 — Add error handling for missing or failed git log/blame calls in RepoMemory.ps1** — lib/RepoMemory.ps1 L162, L393, L405
+- [x] **C107 — Add error handling for Write-MemoryFile failures in RepoMemory.ps1** — lib/RepoMemory.ps1 L170, L380
+- [x] **C108 — Add error handling for file not found in Get-BlameForFile in RepoMemory.ps1** — lib/RepoMemory.ps1 L395, L405
 - [x] **C92 — Add logging to all empty catch blocks in RepoMemory.ps1** — lib/RepoMemory.ps1 L166, L374, L407
 - [x] **C93 — Add error handling for missing file in RepoMemory.ps1** — lib/RepoMemory.ps1 L166
 - [x] **C94 — Add logging to empty catch block in RepoMemory.ps1** — lib/RepoMemory.ps1 L374
@@ -22,16 +22,16 @@
 - [x] **C87 — Add git commit error handling in run.ps1** — run.ps1 L65
 - [x] **C88 — Add path sanitization to prevent directory traversal in DebugLogger.ps1** — lib/DebugLogger.ps1 L17
 - [x] **C89 — Add catch block logging for all try/catch in RepoMemory.ps1** — lib/RepoMemory.ps1 L100
-- [ ] **C103 — Add error handling for git log and blame calls in RepoMemory.ps1** — lib/RepoMemory.ps1 L162, L393, L405
-- [ ] **C104 — Add error handling for Write-MemoryFile in RepoMemory.ps1** — lib/RepoMemory.ps1 L170, L380
-- [ ] **C105 — Add error handling for file not found in Get-BlameForFile in RepoMemory.ps1** — lib/RepoMemory.ps1 L395, L405
+- [x] **C103 — Add error handling for git log and blame calls in RepoMemory.ps1** — lib/RepoMemory.ps1 L162, L393, L405
+- [x] **C104 — Add error handling for Write-MemoryFile in RepoMemory.ps1** — lib/RepoMemory.ps1 L170, L380
+- [x] **C105 — Add error handling for file not found in Get-BlameForFile in RepoMemory.ps1** — lib/RepoMemory.ps1 L395, L405
 
 ## D stream: New features
 - [x] **D10 — Add retry mechanism with exponential backoff for Azure OpenAI API calls** — lib/AzureAgent.ps1
 - [x] **D11 — Add configurable timeout for agent execution in Orchestrator.ps1** — lib/Orchestrator.ps1 (MAX_AGENT_ITERATIONS=20)
 - [x] **D12 — Add [Parameter(Mandatory)] validation attributes to all lib/ functions** — lib/*.ps1
 - [x] **D13 — Add startup validation for required environment variables (AZURE_OPENAI_ENDPOINT, API_KEY, API_VERSION)** — run.ps1
-- [ ] **D14 — Add structured error response type for agent failures** — lib/Orchestrator.ps1
+- [x] **D14 — Add structured error response type for agent failures** — lib/Orchestrator.ps1
 
 ## E stream: Test coverage
 - [x] **E27 — Add/verify Pester tests for TokenBudget.ps1 error budget enforcement** — lib/TokenBudget.ps1 L30

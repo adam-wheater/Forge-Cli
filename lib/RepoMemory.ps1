@@ -17,12 +17,16 @@ function Read-MemoryFile {
 
 function Write-MemoryFile {
     param ([Parameter(Mandatory)][string]$FileName, [Parameter(Mandatory)]$Data)
-    $path = Get-MemoryPath $FileName
-    $dir = Split-Path $path -Parent
-    if (-not (Test-Path $dir)) {
-        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    try {
+        $path = Get-MemoryPath $FileName
+        $dir = Split-Path $path -Parent
+        if (-not (Test-Path $dir)) {
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        }
+        $Data | ConvertTo-Json -Depth 10 | Out-File $path -Encoding utf8
+    } catch {
+        Write-Warning "Failed to write memory file '${FileName}': $($_.Exception.Message)"
     }
-    $Data | ConvertTo-Json -Depth 10 | Out-File $path -Encoding utf8
 }
 
 function Initialize-RepoMemory {
@@ -167,7 +171,11 @@ function Update-CodeIntel {
         Write-Warning "Failed to read git log for recent changes: $($_.Exception.Message)"
     }
 
-    Write-MemoryFile "code-intel.json" $intel
+    try {
+        Write-MemoryFile "code-intel.json" $intel
+    } catch {
+        Write-Warning "Failed to save code-intel.json: $($_.Exception.Message)"
+    }
     return $intel
 }
 
@@ -377,18 +385,33 @@ function Update-GitMemory {
         Write-Warning "Failed to update git memory: $($_.Exception.Message)"
     }
 
-    Write-MemoryFile "git-state.json" $git
+    try {
+        Write-MemoryFile "git-state.json" $git
+    } catch {
+        Write-Warning "Failed to save git-state.json: $($_.Exception.Message)"
+    }
     return $git
 }
 
 function Get-BlameForFile {
     param (
-        [string]$FilePath,
+        [Parameter(Mandatory)][string]$FilePath,
         [int[]]$Lines = @(),
         [string]$ProjectDir = (Get-Location)
     )
 
     $results = @()
+
+    if ([string]::IsNullOrWhiteSpace($FilePath)) {
+        Write-Warning "Get-BlameForFile: FilePath is null or empty."
+        return $results
+    }
+
+    if (-not (Test-Path $ProjectDir -PathType Container)) {
+        Write-Warning "Get-BlameForFile: ProjectDir '$ProjectDir' does not exist or is not a directory."
+        return $results
+    }
+
     try {
         if ($Lines.Count -gt 0) {
             foreach ($line in $Lines | Select-Object -First 5) {
