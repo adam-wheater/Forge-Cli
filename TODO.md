@@ -33,6 +33,19 @@
 - [x] **D13 — Add startup validation for required environment variables (AZURE_OPENAI_ENDPOINT, API_KEY, API_VERSION)** — run.ps1
 - [x] **D14 — Add structured error response type for agent failures** — lib/Orchestrator.ps1
 
+## C stream: Bug fixes (new)
+- [ ] **C109 — Wire up reviewer agent in the main loop** — run.ps1 L37. Reviewer is loaded but never called; the safety gate is entirely missing. Add a reviewer pass after the judge selects a patch, before applying it.
+- [ ] **C110 — Add git reset between loop iterations** — run.ps1 L68, L93. Failed patches and test runs leave dirty working tree state. Add `git checkout -- .` before each retry so iterations start clean.
+- [ ] **C111 — Validate judge output is a valid unified diff before applying** — run.ps1 L66. If the judge returns commentary or malformed output, `git apply` fails silently. Add patch format validation.
+- [ ] **C112 — Move Enforce-Budgets to run every iteration, not just on failure** — run.ps1 L122. Currently only called when tests fail. Successful iterations with expensive API calls can blow past cost limits.
+- [ ] **C113 — Default RepoName from RepoUrl when not provided** — run.ps1 L3. `$RepoName` has no default; if omitted, `Set-Location $RepoName` fails with empty string. Derive from URL if not provided.
+- [ ] **C114 — Clean up ai.patch file between iterations** — run.ps1 L66. Stale patch file persists if a subsequent iteration's judge returns NO_CHANGES.
+
+## D stream: New features (new)
+- [ ] **D15 — Support PowerShell project build/test in run.ps1** — run.ps1 L79, L90. Currently hardcodes `dotnet build` and `dotnet test`. RepoMemory detects project type but run.ps1 ignores it. Add conditional logic to run Pester for PowerShell repos.
+- [ ] **D16 — Use Get-SuggestedFix to inform builder hypotheses** — run.ps1 L49. The 3 hypotheses are static strings. Use heuristics/known-fix data from RepoMemory to generate smarter, context-aware hypotheses.
+- [ ] **D17 — Add PowerShell file scoring in Score-File** — lib/RepoTools.ps1 L7. Score-File only scores .cs files. Add scoring for .ps1, .Tests.ps1, and PowerShell module patterns.
+
 ## E stream: Test coverage
 - [x] **E27 — Add/verify Pester tests for TokenBudget.ps1 error budget enforcement** — lib/TokenBudget.ps1 L30
 - [x] **E28 — Add/verify Pester tests for forbidden tool error in Orchestrator.ps1** — lib/Orchestrator.ps1 L34
