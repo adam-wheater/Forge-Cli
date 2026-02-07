@@ -2072,6 +2072,7 @@ run_builder_prompts() {
 Read TODO.md and pick ONE unchecked item from the C stream (bug fixes & code quality).
 Implement the fix with proper error handling and add/update tests.
 Mark the item [x] in TODO.md when complete.
+IMPORTANT: NEVER read, modify, or create files in the vibe/ folder. It is off-limits.
 Do not ask questions. Apply changes directly.${memory_block}"
   local bugfix_prompt
   bugfix_prompt="$(append_skill_context "$base_bugfix")"
@@ -2083,6 +2084,7 @@ Do not ask questions. Apply changes directly.${memory_block}"
 Read TODO.md and pick ONE unchecked item from the D stream (new features).
 Implement the feature end-to-end with tests and docs.
 Mark the item [x] in TODO.md when complete.
+IMPORTANT: NEVER read, modify, or create files in the vibe/ folder. It is off-limits.
 Do not ask questions. Apply changes directly.${memory_block}"
   local feature_prompt
   feature_prompt="$(append_skill_context "$base_feature")"
@@ -2094,6 +2096,7 @@ Do not ask questions. Apply changes directly.${memory_block}"
 Read TODO.md and pick ONE unchecked item from the E stream (test coverage).
 Write comprehensive tests for the specified area.
 Mark the item [x] in TODO.md when complete.
+IMPORTANT: NEVER read, modify, or create files in the vibe/ folder. It is off-limits.
 Do not ask questions. Apply changes directly.${memory_block}"
   local test_prompt
   test_prompt="$(append_skill_context "$base_test")"
@@ -2104,6 +2107,7 @@ Do not ask questions. Apply changes directly.${memory_block}"
   local base_improver="You are the Improver.
 Read TODO.md and pick ONE unchecked item from ANY stream (C, D, or E).
 Implement it fully with tests. Mark the item [x] when complete.
+IMPORTANT: NEVER read, modify, or create files in the vibe/ folder. It is off-limits.
 Do not ask questions. Apply changes directly.${memory_block}"
   local improver_prompt
   improver_prompt="$(append_skill_context "$base_improver")"
@@ -2131,7 +2135,8 @@ Current mode: $mode.
 - Fix bugs.
 - Improve tests, including .NET coverage.
 - Apply changes directly.
-- Do not ask questions.'
+- Do not ask questions.
+- NEVER read, modify, or create files in the vibe/ folder. It is off-limits.'
 
   local reviewer_prompt
   reviewer_prompt="$(append_skill_context "$base_prompt")"
@@ -2155,11 +2160,13 @@ Scan the codebase and add new issues to TODO.md:
    - D stream: New features (D10, D11...)
    - E stream: Test coverage (E27, E28...)
 
-3. **Format**: \`- [ ] **ID — Title** — file.cs L##\`
+3. **Format**: \`- [ ] **ID — Title** — file.ps1 L##\`
 
 4. **Mark done**: If code shows a task is complete, mark it \`[x]\`.
 
 Rules:
+- NEVER scan, reference, or add issues about files in the vibe/ folder. It is off-limits.
+- Only scan files in: lib/, agents/, scripts/, tests/, and root .ps1 files.
 - Only add REAL issues with file:line evidence
 - No duplicates
 - Sequential IDs within each stream
