@@ -1,0 +1,20 @@
+{
+  "maxLoops": 8,
+  "maxAgentIterations": 20,
+  "maxSearches": 6,
+  "maxOpens": 5,
+  "maxTotalTokens": 200000,
+  "maxIterationTokens": 40000,
+  "maxCostGBP": 25.00,
+  "promptCostPer1K": 0.002,
+  "completionCostPer1K": 0.006,
+  "memoryBackend": "local",
+  "redisConnectionString": "",
+  "embeddingModel": "text-embedding-3-small",
+  "builderDeployment": "",
+  "judgeDeployment": "",
+  "reviewerDeployment": "",
+  "debugMode": false,
+  "interactiveMode": false,
+  "dryRun": false
+}

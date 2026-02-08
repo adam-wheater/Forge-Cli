@@ -23,17 +23,19 @@ Describe 'Run-Agent' {
         }
     }
     Context 'With invalid JSON response' {
-        It 'Returns NO_CHANGES instead of crashing' {
+        It 'Returns structured error instead of crashing' {
             Mock -CommandName Invoke-AzureAgent -MockWith { 'this is not valid json' }
             $result = Run-Agent -Role 'builder' -Deployment 'test' -SystemPrompt 'sys' -InitialContext 'init'
-            $result | Should -Be 'NO_CHANGES'
+            $result | Should -BeOfType [hashtable]
+            $result.type | Should -Be 'parse_error'
         }
     }
     Context 'With JSON missing tool field' {
-        It 'Returns NO_CHANGES' {
+        It 'Returns structured error for missing tool' {
             Mock -CommandName Invoke-AzureAgent -MockWith { '{"message":"hello"}' }
             $result = Run-Agent -Role 'builder' -Deployment 'test' -SystemPrompt 'sys' -InitialContext 'init'
-            $result | Should -Be 'NO_CHANGES'
+            $result | Should -BeOfType [hashtable]
+            $result.type | Should -Be 'no_tool'
         }
     }
     Context 'With unknown tool' {

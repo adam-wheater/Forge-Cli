@@ -7,6 +7,26 @@ function Get-MemoryPath {
 
 function Read-MemoryFile {
     param ([Parameter(Mandatory)][string]$FileName)
+
+    # F02: Check Redis backend first when available
+    try {
+        $backend = Get-MemoryBackend
+        if ($backend -eq "redis" -and $Global:RedisCacheEnabled) {
+            # Derive repo name from the memory root path or use a default
+            $repoName = Split-Path (Split-Path $Global:MemoryRoot -Parent) -Leaf
+            $memoryType = $FileName -replace '\.json$', ''
+            $redisKey = "forge:${repoName}:${memoryType}"
+            $cached = Get-CacheValue -Key $redisKey
+            if ($null -ne $cached -and $cached -ne "") {
+                return ($cached | ConvertFrom-Json)
+            }
+            # Fall through to local file if Redis returned nothing
+        }
+    } catch {
+        Write-Warning "Redis read fallback for '${FileName}': $($_.Exception.Message)"
+    }
+
+    # Local JSON file fallback
     $path = Get-MemoryPath $FileName
     if (Test-Path $path) {
         Get-Content $path -Raw | ConvertFrom-Json
@@ -17,6 +37,22 @@ function Read-MemoryFile {
 
 function Write-MemoryFile {
     param ([Parameter(Mandatory)][string]$FileName, [Parameter(Mandatory)]$Data)
+
+    # F02: Write to Redis backend when available
+    try {
+        $backend = Get-MemoryBackend
+        if ($backend -eq "redis" -and $Global:RedisCacheEnabled) {
+            $repoName = Split-Path (Split-Path $Global:MemoryRoot -Parent) -Leaf
+            $memoryType = $FileName -replace '\.json$', ''
+            $redisKey = "forge:${repoName}:${memoryType}"
+            $jsonValue = $Data | ConvertTo-Json -Depth 10
+            Set-CacheValue -Key $redisKey -Value $jsonValue -TtlSeconds 86400
+        }
+    } catch {
+        Write-Warning "Redis write fallback for '${FileName}': $($_.Exception.Message)"
+    }
+
+    # Always write local JSON as fallback/backup
     try {
         $path = Get-MemoryPath $FileName
         $dir = Split-Path $path -Parent
