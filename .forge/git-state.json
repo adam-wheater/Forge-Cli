@@ -1,0 +1,11 @@
+{
+  "uncommitted": [],
+  "lastGoodCommit": "",
+  "recentCommits": [  ],
+  "branch": "ai/unit-tests",
+  "coChangePatterns": {
+    "TODO.md|vibe/ai-autonomous-loop-macos-copilot.sh": 2,
+    "AI_MODE.txt|vibe/ai-autonomous-loop-macos-copilot.sh": 2
+  },
+  "diffStat": " 5 files changed, 252 insertions(+), 51 deletions(-)"
+}

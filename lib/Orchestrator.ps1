@@ -324,7 +324,7 @@ function Invoke-ExplainError {
         $result.Explanation = "Expected closing brace '}' in C# code"
         $result.SuggestedAction = "Add the missing closing brace at the indicated location"
     }
-    elseif ($ErrorText -match 'CS0103.*?\'([^\']+)\'') {
+    elseif ($ErrorText -match "CS0103.*?'([^']+)'") {
         $result.Category = "UndefinedName"
         $result.Explanation = "The name '$($matches[1])' does not exist in the current context"
         $result.SuggestedAction = "Declare the variable '$($matches[1])' or add the correct using directive"
@@ -429,20 +429,91 @@ function Run-Agent {
             return 'NO_CHANGES'
         }
 
-        $response = Invoke-AzureAgent $Deployment $SystemPrompt $context
+        $formatHint = ""
+        if ($Role -eq "builder") {
+            $formatHint = "`nREMINDER: You may call tools via JSON (e.g. {""tool"":""search_files"",""pattern"":""...""}) to gather information. When you are DONE investigating and ready to produce your final answer, return ONLY a unified git diff starting with 'diff --git'. No prose, no markdown fences. If no changes needed, reply exactly: NO_CHANGES"
+        }
+        $response = Invoke-AzureAgent $Deployment $SystemPrompt "$context$formatHint"
         Write-DebugLog "$Role-response" $response
 
-        if ($response.TrimStart().StartsWith("diff --git") -or $response -eq "NO_CHANGES") {
+        # Persist raw model response for debugging
+        try {
+            $repoRoot = (Get-Location).Path
+            $logDir = Join-Path $repoRoot 'tmp-logs'
+            if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+            $safeRole = ($Role -replace '[^a-zA-Z0-9_-]', '_')
+            $fileName = "$($safeRole)-response-iteration-$($iterations).txt"
+            $fullPath = Join-Path $logDir $fileName
+            $response | Out-File -FilePath $fullPath -Encoding utf8 -Force
+        } catch {
+            Write-DebugLog "log-dump-failed" $_.Exception.Message
+        }
+
+        # Ensure response is a string before checking content
+        if ($response -and -not ($response -is [string])) {
+            try {
+                if ($response.Content) { $response = $response.Content }
+                else { $response = $response | ConvertTo-Json -Depth 6 }
+            } catch { $response = $response.ToString() }
+        }
+        if (-not $response) {
+            Write-DebugLog "$Role-empty" "Empty response from model"
+            return 'NO_CHANGES'
+        }
+
+        if ($response.TrimStart().StartsWith("diff --git") -or $response.TrimStart().StartsWith("--- a/") -or $response -eq "NO_CHANGES") {
             return $response
         }
 
         try {
             $json = $response | ConvertFrom-Json
         } catch {
-            Write-DebugLog "$Role-parse-error" "Failed to parse response as JSON: $($_.Exception.Message)"
-            return (New-AgentError -Type "parse_error" -Role $Role -Message "Failed to parse response as JSON: $($_.Exception.Message)")
+            Write-DebugLog "$Role-parse-error" "Failed to parse response as JSON: $($_.Exception.Message) - attempting tolerant parse"
+            # Attempt tolerant parsing: convert concatenated JSON objects into an array
+            try {
+                $maybe = "[$($response -replace '\}\s*\{', '},{')]"
+                $json = $maybe | ConvertFrom-Json
+            } catch {
+                Write-DebugLog "$Role-parse-error2" "Tolerant parse failed: $($_.Exception.Message)"
+                # If response looks like it contains a diff buried in prose, try to extract it
+                if ($response -match 'diff --git') {
+                    $idx = $response.IndexOf('diff --git')
+                    return $response.Substring($idx).Trim()
+                }
+                return (New-AgentError -Type "parse_error" -Role $Role -Message "Failed to parse response as JSON: $($_.Exception.Message)")
+            }
         }
 
+        # If parsed JSON is an array, process each tool-call sequentially
+        if ($json -is [System.Array]) {
+            foreach ($item in $json) {
+                if (-not $item.tool) {
+                    Write-DebugLog "$Role-no-tool" "One of the response items is missing 'tool'"
+                    return (New-AgentError -Type "no_tool" -Role $Role -Message "One of the response items is missing 'tool'")
+                }
+                if (-not ($TOOL_PERMISSIONS[$Role] -contains $item.tool)) {
+                    throw "Forbidden tool $($item.tool) for role $Role"
+                }
+
+                # Build arguments hashtable from item properties (excluding 'tool')
+                $toolArgs = @{}
+                foreach ($p in $item.PSObject.Properties) {
+                    if ($p.Name -ne 'tool') { $toolArgs[$p.Name] = $p.Value }
+                }
+
+                try {
+                    $toolResult = Invoke-ToolCall -Role $Role -ToolName $item.tool -Arguments $toolArgs -Searches ([ref]$searches) -Opens ([ref]$opens) -Writes ([ref]$writes) -TestRuns ([ref]$testRuns) -CoverageRuns ([ref]$coverageRuns)
+                } catch {
+                    $toolResult = "TOOL_ERROR: $($_.Exception.Message)"
+                }
+
+                Write-DebugLog "$Role-array-tool-result" $toolResult
+                $context += "`n$($item.tool) result:`n$toolResult"
+            }
+
+            # After processing array, continue loop to ask model again
+            continue
+        }
         if (-not $json.tool) {
             Write-DebugLog "$Role-no-tool" "Response JSON missing 'tool' field"
             return (New-AgentError -Type "no_tool" -Role $Role -Message "Response JSON missing 'tool' field")
@@ -961,11 +1032,8 @@ function Run-AgentWithFunctionCalling {
     $coverageRuns = 0
     $iterations = 0
 
-    # Build conversation messages
-    $messages = @(
-        @{ role = "system"; content = $SystemPrompt },
-        @{ role = "user"; content = $InitialContext }
-    )
+    # Accumulate context across iterations so the model sees prior tool results
+    $accumulatedContext = $InitialContext
 
     while ($true) {
         if ($iterations++ -ge $MAX_AGENT_ITERATIONS) {
@@ -975,17 +1043,30 @@ function Run-AgentWithFunctionCalling {
 
         try {
             $response = Invoke-AzureAgentWithTools -Deployment $Deployment `
-                -SystemPrompt $SystemPrompt -UserPrompt $InitialContext `
+                -SystemPrompt $SystemPrompt -UserPrompt $accumulatedContext `
                 -Tools $tools
         } catch {
             Write-DebugLog "$Role-fc-error" "Function calling API error: $($_.Exception.Message)"
             return (New-AgentError -Type "api_error" -Role $Role -Message $_.Exception.Message)
         }
 
+        # Persist raw function-calling response for debugging
+        try {
+            $repoRoot = (Get-Location).Path
+            $logDir = Join-Path $repoRoot 'tmp-logs'
+            if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+            $safeRole = ($Role -replace '[^a-zA-Z0-9_-]', '_')
+            $fileName = "$($safeRole)-fc-response-iteration-$($iterations).json"
+            $fullPath = Join-Path $logDir $fileName
+            $response | ConvertTo-Json -Depth 10 | Out-File -FilePath $fullPath -Encoding utf8 -Force
+        } catch {
+            Write-DebugLog "log-dump-failed-fc" $_.Exception.Message
+        }
+
         # If no tool calls, the model returned final content
         if (-not $response.ToolCalls -or $response.ToolCalls.Count -eq 0) {
             $content = $response.Content
-            if ($content.TrimStart().StartsWith("diff --git") -or $content -eq "NO_CHANGES") {
+            if ($content -and $content.TrimStart().StartsWith("diff --git") -or $content -eq "NO_CHANGES") {
                 return $content
             }
             # Model returned content but no diff — treat as no changes
@@ -1008,8 +1089,8 @@ function Run-AgentWithFunctionCalling {
 
             Write-DebugLog "$Role-fc-result" $toolResult
 
-            # Append tool result to context for next iteration
-            $InitialContext += "`n$($tc.Name) result:`n$toolResult"
+            # Append tool result to accumulated context so next iteration sees it
+            $accumulatedContext += "`n$($tc.Name) result:`n$toolResult"
         }
     }
 }
