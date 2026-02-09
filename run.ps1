@@ -131,12 +131,13 @@ function Write-IterationHeader {
 
 # Normalize model-produced patch text: strip fences and extract unified-diff
 function Normalize-Patch {
-    param([string]$raw)
+    param($raw)
     if (-not $raw) { return $raw }
-    # If the model returned a PSCustomObject, try to extract textual content
+    # If the model returned a PSCustomObject or hashtable, extract textual content
     if (-not ($raw -is [string])) {
         try {
-            if ($raw.Content) { $raw = $raw.Content }
+            if ($raw.Content) { $raw = [string]$raw.Content }
+            elseif ($raw -is [hashtable] -and $raw.message) { $raw = [string]$raw.message }
             else { $raw = $raw | ConvertTo-Json -Depth 6 }
         } catch { $raw = $raw.ToString() }
     }
@@ -167,6 +168,7 @@ function Repair-Patch {
     if (-not $patchText) { return $patchText }
 
     $workDir = $repoRoot
+    $savedDir = (Get-Location).Path
     $origPath = Join-Path $workDir 'tmp-logs\ai.patch.orig.txt'
     $trialPath = Join-Path $workDir 'tmp-logs\ai.patch.trial.txt'
     if (-not (Test-Path (Join-Path $workDir 'tmp-logs'))) { New-Item -ItemType Directory -Path (Join-Path $workDir 'tmp-logs') -Force | Out-Null }
@@ -174,33 +176,37 @@ function Repair-Patch {
 
     # Quick check: apply-check original
     Set-Location $workDir
-    $patchText | Out-File ai.patch -Encoding utf8 -Force
-    git apply --check ai.patch 2>$null
-    if ($LASTEXITCODE -eq 0) { return $patchText }
-
-    # Variant 1: strip a/ b/ prefixes in headers
-    $v1 = $patchText -replace '(^---\s+)a/','$1' -replace '(^\+\+\+\s+)b/','$1'
-    $v1 | Out-File ai.patch -Encoding utf8 -Force
-    git apply --check ai.patch 2>$null
-    if ($LASTEXITCODE -eq 0) { return $v1 }
-
-    # Variant 2: normalize line endings (LF)
-    $v2 = ($v1 -replace "\r\n","\n")
-    $v2 | Out-File ai.patch -Encoding utf8 -Force
-    git apply --check ai.patch 2>$null
-    if ($LASTEXITCODE -eq 0) { return $v2 }
-
-    # Variant 3: try to remove leading code fences already handled by Normalize-Patch, but try again with original
-    $v3 = $patchText -replace '(^```[a-zA-Z0-9\-]*\r?\n)|(```\r?\n$)', ''
-    $v3 | Out-File ai.patch -Encoding utf8 -Force
-    git apply --check ai.patch 2>$null
-    if ($LASTEXITCODE -eq 0) { return $v3 }
-
-    # Last resort: attempt to apply with rejects and return the trial text (may create .rej files)
     try {
-        git apply --reject --whitespace=fix ai.patch 2>$null
-    } catch {}
-    return $patchText
+        $patchText | Out-File ai.patch -Encoding utf8 -Force
+        git apply --check ai.patch 2>$null
+        if ($LASTEXITCODE -eq 0) { return $patchText }
+
+        # Variant 1: strip a/ b/ prefixes in headers
+        $v1 = $patchText -replace '(^---\s+)a/','$1' -replace '(^\+\+\+\s+)b/','$1'
+        $v1 | Out-File ai.patch -Encoding utf8 -Force
+        git apply --check ai.patch 2>$null
+        if ($LASTEXITCODE -eq 0) { return $v1 }
+
+        # Variant 2: normalize line endings (LF)
+        $v2 = ($v1 -replace "\r\n","\n")
+        $v2 | Out-File ai.patch -Encoding utf8 -Force
+        git apply --check ai.patch 2>$null
+        if ($LASTEXITCODE -eq 0) { return $v2 }
+
+        # Variant 3: try to remove leading code fences already handled by Normalize-Patch, but try again with original
+        $v3 = $patchText -replace '(^```[a-zA-Z0-9\-]*\r?\n)|(```\r?\n$)', ''
+        $v3 | Out-File ai.patch -Encoding utf8 -Force
+        git apply --check ai.patch 2>$null
+        if ($LASTEXITCODE -eq 0) { return $v3 }
+
+        # Last resort: attempt to apply with rejects and return the trial text (may create .rej files)
+        try {
+            git apply --reject --whitespace=fix ai.patch 2>$null
+        } catch {}
+        return $patchText
+    } finally {
+        Set-Location $savedDir
+    }
 }
 
 # Wire K modules: Initialize metrics tracking if MetricsTracker.ps1 is loaded
@@ -421,9 +427,11 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         # Try parallel execution with Start-Job
         try {
             $builderJobs = @()
+            $repoWorkDir = (Get-Location).Path
             foreach ($h in $hypotheses) {
                 $job = Start-Job -ScriptBlock {
-                    param($scriptRoot, $builderPrompt, $contextStr, $hypothesis, $deployment, $useFc)
+                    param($scriptRoot, $workDir, $builderPrompt, $contextStr, $hypothesis, $deployment, $useFc)
+                    Set-Location $workDir
                     . "$scriptRoot/lib/Orchestrator.ps1"
                     . "$scriptRoot/lib/RepoMemory.ps1"
                     if ($useFc -and (Get-Command Run-AgentWithFunctionCalling -ErrorAction SilentlyContinue)) {
@@ -431,7 +439,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
                     } else {
                         return Run-Agent "builder" $deployment $builderPrompt "$contextStr`nFOCUS:$hypothesis"
                     }
-                } -ArgumentList $PSScriptRoot, $builderPrompt, $context, $h, $builderPatchDeployment, $script:USE_FUNCTION_CALLING
+                } -ArgumentList $PSScriptRoot, $repoWorkDir, $builderPrompt, $context, $h, $builderPatchDeployment, $script:USE_FUNCTION_CALLING
 
                 $builderJobs += $job
             }
@@ -473,11 +481,11 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         try { Add-MetricEvent -Event "builder_end" -Data @{ patchCount = $patches.Count } } catch {}
     }
 
-    Write-DebugLog "candidate-patches" ($patches -join "`n---`n")
+    Write-DebugLog "candidate-patches-raw" ($patches -join "`n---`n")
     Write-ForgeStatus "Collected $($patches.Count) candidate patches" "info"
 
     # If none of the builders returned a unified diff, request an explicit patch
-    if (-not ($patches | Where-Object { $_ -match '^(diff --git|---)' })) {
+    if (-not ($patches | Where-Object { $_ -is [string] -and $_ -match '^(diff --git|---)' })) {
         Write-ForgeStatus "No valid diffs found from builders; requesting explicit patch" "warning"
         $finalPatchContext = "$context`nFINAL_TASK: Using the investigation above, produce a SINGLE unified git diff that implements the fix. Return ONLY the diff starting with 'diff --git'. If there are no changes, reply exactly NO_CHANGES. Do NOT include any explanatory text."
         try {
@@ -485,14 +493,13 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
             $patches += $extra
             Write-DebugLog "explicit-patch" $extra
             # If the builder still returns tool-calls or not a diff, force a finalize call where the model must not call tools
-            if ($extra -notmatch '^(diff --git|---)') {
+            if ($extra -is [string] -and $extra -notmatch '^(diff --git|---)') {
                 Write-ForgeStatus "Builders didn't emit a diff; forcing finalization call" "warning"
                 $finalSystem = $builderPrompt + "`nFINALIZE_MODE: You must NOT call tools. Produce ONLY a unified git diff starting with 'diff --git' that implements the fixes. If no changes, reply exactly NO_CHANGES. Do NOT include any explanatory text."
                 try {
                     $forced = Invoke-AzureAgent $builderPatchDeployment $finalSystem $finalPatchContext
                     $patches += $forced
                     Write-DebugLog "forced-explicit-patch" $forced
-                    # Save forced response for inspection
                     try {
                         $logDir = Join-Path (Get-Location).Path 'tmp-logs'
                         if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
@@ -508,9 +515,28 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         }
     }
 
+    # Sanitize ALL patches (including explicit ones): convert error hashtables to strings, filter empties
+    $patches = @($patches | ForEach-Object {
+        if ($_ -is [hashtable] -and $_.type) {
+            "ERROR[$($_.role)]: $($_.type) - $($_.message)"
+        } elseif ($_ -is [string]) {
+            $_
+        } elseif ($_) {
+            try { $_ | ConvertTo-Json -Depth 4 -Compress } catch { $_.ToString() }
+        }
+    } | Where-Object { $_ })
+
     Write-ForgeStatus "Judge selecting best patch..." "progress"
     $judgeInput = "Select best patch:`n" + ($patches -join "`n---`n")
-    $chosen = Invoke-AzureAgent $judgeModelDeployment $judgePrompt $judgeInput
+    try {
+        $chosen = Invoke-AzureAgent $judgeModelDeployment $judgePrompt $judgeInput
+    } catch {
+        Write-ForgeStatus "Judge API call failed: $($_.Exception.Message)" "error"
+        Write-DebugLog "judge-failed" $_.Exception.Message
+        # Fall back to first patch that looks like a diff
+        $chosen = $patches | Where-Object { $_ -match '^(diff --git|---)' } | Select-Object -First 1
+        if (-not $chosen) { $chosen = "NO_CHANGES" }
+    }
     Write-DebugLog "judge-choice" $chosen
     try {
         $logDir = Join-Path (Get-Location).Path 'tmp-logs'
@@ -524,21 +550,36 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     $reviewerDeployment = if ($env:REVIEWER_DEPLOYMENT) { $env:REVIEWER_DEPLOYMENT } else { $env:JUDGE_DEPLOYMENT }
     $reviewed = Run-Agent "reviewer" $reviewerDeployment $reviewerPrompt "Review this patch:`n$chosen"
     Write-DebugLog "reviewer-output" $reviewed
-    if ($reviewed -and $reviewed -ne "NO_CHANGES") {
+    # Safety: if reviewer returned an error hashtable, stringify it
+    if ($reviewed -and $reviewed -is [hashtable]) {
+        Write-DebugLog "reviewer-error" "Reviewer returned error: $($reviewed.message)"
+        $reviewed = $null
+    }
+    if ($reviewed -and $reviewed -is [string] -and $reviewed -ne "NO_CHANGES") {
         # Check if reviewer returned a refinement request JSON
         try {
             $reviewJson = $reviewed | ConvertFrom-Json -ErrorAction Stop
             if ($reviewJson.verdict -eq "refine" -and $reviewJson.issues) {
                 Write-ForgeStatus "Reviewer requested refinement ($($reviewJson.issues.Count) issues)" "warning"
                 $refinementContext = "$context`nREVIEWER_FEEDBACK:`n$($reviewJson.issues -join "`n")`nFOCUS: Address reviewer issues in this patch:`n$chosen"
-                $chosen = Invoke-BuilderAgent -Deployment $builderPatchDeployment -SystemPrompt $builderPrompt -Context $refinementContext
-                Write-DebugLog "refinement-output" $chosen
+                $refinedResult = Invoke-BuilderAgent -Deployment $builderPatchDeployment -SystemPrompt $builderPrompt -Context $refinementContext
+                Write-DebugLog "refinement-output" $refinedResult
+                # Only use refinement if it's a valid string response
+                if ($refinedResult -is [string]) {
+                    $chosen = $refinedResult
+                }
             }
         } catch {
             # Not JSON — reviewer returned a corrected patch directly
             $chosen = $reviewed
         }
     }
+
+    # Ensure $chosen is always a string before proceeding
+    if ($chosen -and -not ($chosen -is [string])) {
+        $chosen = Normalize-Patch $chosen
+    }
+    if (-not $chosen) { $chosen = "NO_CHANGES" }
 
     # K05: Interactive mode — pause after judge, ask user approval
     if ($InteractiveMode) {
@@ -562,7 +603,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         Write-DebugLog "invalid-patch" "Chosen patch is not a valid unified diff"
         Save-RunState -Iteration $i -BuildOk $false -TestOk $false `
             -Attempts @($hypotheses) -DiffSummary "Invalid patch format"
-        Enforce-Budgets $iterationStart
+        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
         # J08: Clean up worktrees
         if ($UseWorktrees -and $worktrees.Count -gt 0) {
             foreach ($wt in $worktrees) {
@@ -582,7 +623,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         # Still update memory and enforce budgets
         Save-RunState -Iteration $i -BuildOk $true -TestOk $true `
             -DiffSummary "Dry run — patch not applied"
-        Enforce-Budgets $iterationStart
+        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
         # J08: Clean up worktrees
         if ($UseWorktrees -and $worktrees.Count -gt 0) {
             foreach ($wt in $worktrees) {
@@ -605,7 +646,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         Write-DebugLog "apply-failed" "git apply failed (exit code $LASTEXITCODE)"
         Save-RunState -Iteration $i -BuildOk $false -TestOk $false `
             -Attempts @($hypotheses) -DiffSummary "git apply failed"
-        Enforce-Budgets $iterationStart
+        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
         # J08: Clean up worktrees
         if ($UseWorktrees -and $worktrees.Count -gt 0) {
             foreach ($wt in $worktrees) {
@@ -638,7 +679,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
                 -Attempts @($hypotheses) `
                 -DiffSummary "Build failed after applying patch"
             Update-CodeIntel (Get-Location)
-            Enforce-Budgets $iterationStart
+            try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
             # J08: Clean up worktrees
             if ($UseWorktrees -and $worktrees.Count -gt 0) {
                 foreach ($wt in $worktrees) {
@@ -719,7 +760,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         $context = $toolsBase + "`n" + (Get-MemorySummary -Focus $failedFiles)
         $context += "`nTEST_FAILURES:`n$testOutput"
         $context += "`nLAST_DIFF:`n$(git diff)"
-        Enforce-Budgets $iterationStart
+        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
 
         # Wire K modules: Add metric event for iteration end (failure)
         if (Get-Command Add-MetricEvent -ErrorAction SilentlyContinue) {
@@ -742,7 +783,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     Save-RunState -Iteration $i -BuildOk $true -TestOk $true `
         -DiffSummary "Tests passed on iteration $i"
     Update-CodeIntel (Get-Location)
-    Enforce-Budgets $iterationStart
+    try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
 
     # Wire K modules: Add metric event for iteration end (success)
     if (Get-Command Add-MetricEvent -ErrorAction SilentlyContinue) {

@@ -429,7 +429,10 @@ function Run-Agent {
             return 'NO_CHANGES'
         }
 
-        $formatHint = "OUTPUT_FORMAT: Reply with EXACTLY ONE of the following formats and NOTHING ELSE (no explanations, no extra text):`n`nOPTION A: Unified git diff (preferred) — response MUST start with: diff --git`n`nOPTION B: JSON object OR JSON array of tool-call objects. Each object MUST include a ""tool"" string field and any required tool-specific fields.`n`nIf no changes, reply exactly: NO_CHANGES`n`nDo NOT include any additional text, explanations, or markdown/code fences."
+        $formatHint = ""
+        if ($Role -eq "builder") {
+            $formatHint = "`nREMINDER: You may call tools via JSON (e.g. {""tool"":""search_files"",""pattern"":""...""}) to gather information. When you are DONE investigating and ready to produce your final answer, return ONLY a unified git diff starting with 'diff --git'. No prose, no markdown fences. If no changes needed, reply exactly: NO_CHANGES"
+        }
         $response = Invoke-AzureAgent $Deployment $SystemPrompt "$context$formatHint"
         Write-DebugLog "$Role-response" $response
 
@@ -446,7 +449,19 @@ function Run-Agent {
             Write-DebugLog "log-dump-failed" $_.Exception.Message
         }
 
-        if ($response.TrimStart().StartsWith("diff --git") -or $response -eq "NO_CHANGES") {
+        # Ensure response is a string before checking content
+        if ($response -and -not ($response -is [string])) {
+            try {
+                if ($response.Content) { $response = $response.Content }
+                else { $response = $response | ConvertTo-Json -Depth 6 }
+            } catch { $response = $response.ToString() }
+        }
+        if (-not $response) {
+            Write-DebugLog "$Role-empty" "Empty response from model"
+            return 'NO_CHANGES'
+        }
+
+        if ($response.TrimStart().StartsWith("diff --git") -or $response.TrimStart().StartsWith("--- a/") -or $response -eq "NO_CHANGES") {
             return $response
         }
 
@@ -456,10 +471,15 @@ function Run-Agent {
             Write-DebugLog "$Role-parse-error" "Failed to parse response as JSON: $($_.Exception.Message) - attempting tolerant parse"
             # Attempt tolerant parsing: convert concatenated JSON objects into an array
             try {
-                $maybe = "[$($response -replace '}' + "\s*" + '{','},{')]"
+                $maybe = "[$($response -replace '\}\s*\{', '},{')]"
                 $json = $maybe | ConvertFrom-Json
             } catch {
                 Write-DebugLog "$Role-parse-error2" "Tolerant parse failed: $($_.Exception.Message)"
+                # If response looks like it contains a diff buried in prose, try to extract it
+                if ($response -match 'diff --git') {
+                    $idx = $response.IndexOf('diff --git')
+                    return $response.Substring($idx).Trim()
+                }
                 return (New-AgentError -Type "parse_error" -Role $Role -Message "Failed to parse response as JSON: $($_.Exception.Message)")
             }
         }
@@ -476,13 +496,13 @@ function Run-Agent {
                 }
 
                 # Build arguments hashtable from item properties (excluding 'tool')
-                $args = @{}
+                $toolArgs = @{}
                 foreach ($p in $item.PSObject.Properties) {
-                    if ($p.Name -ne 'tool') { $args[$p.Name] = $p.Value }
+                    if ($p.Name -ne 'tool') { $toolArgs[$p.Name] = $p.Value }
                 }
 
                 try {
-                    $toolResult = Invoke-ToolCall -Role $Role -ToolName $item.tool -Arguments $args -Searches ([ref]$searches) -Opens ([ref]$opens) -Writes ([ref]$writes) -TestRuns ([ref]$testRuns) -CoverageRuns ([ref]$coverageRuns)
+                    $toolResult = Invoke-ToolCall -Role $Role -ToolName $item.tool -Arguments $toolArgs -Searches ([ref]$searches) -Opens ([ref]$opens) -Writes ([ref]$writes) -TestRuns ([ref]$testRuns) -CoverageRuns ([ref]$coverageRuns)
                 } catch {
                     $toolResult = "TOOL_ERROR: $($_.Exception.Message)"
                 }
@@ -1012,11 +1032,8 @@ function Run-AgentWithFunctionCalling {
     $coverageRuns = 0
     $iterations = 0
 
-    # Build conversation messages
-    $messages = @(
-        @{ role = "system"; content = $SystemPrompt },
-        @{ role = "user"; content = $InitialContext }
-    )
+    # Accumulate context across iterations so the model sees prior tool results
+    $accumulatedContext = $InitialContext
 
     while ($true) {
         if ($iterations++ -ge $MAX_AGENT_ITERATIONS) {
@@ -1026,7 +1043,7 @@ function Run-AgentWithFunctionCalling {
 
         try {
             $response = Invoke-AzureAgentWithTools -Deployment $Deployment `
-                -SystemPrompt $SystemPrompt -UserPrompt $InitialContext `
+                -SystemPrompt $SystemPrompt -UserPrompt $accumulatedContext `
                 -Tools $tools
         } catch {
             Write-DebugLog "$Role-fc-error" "Function calling API error: $($_.Exception.Message)"
@@ -1049,7 +1066,7 @@ function Run-AgentWithFunctionCalling {
         # If no tool calls, the model returned final content
         if (-not $response.ToolCalls -or $response.ToolCalls.Count -eq 0) {
             $content = $response.Content
-            if ($content.TrimStart().StartsWith("diff --git") -or $content -eq "NO_CHANGES") {
+            if ($content -and $content.TrimStart().StartsWith("diff --git") -or $content -eq "NO_CHANGES") {
                 return $content
             }
             # Model returned content but no diff — treat as no changes
@@ -1072,8 +1089,8 @@ function Run-AgentWithFunctionCalling {
 
             Write-DebugLog "$Role-fc-result" $toolResult
 
-            # Append tool result to context for next iteration
-            $InitialContext += "`n$($tc.Name) result:`n$toolResult"
+            # Append tool result to accumulated context so next iteration sees it
+            $accumulatedContext += "`n$($tc.Name) result:`n$toolResult"
         }
     }
 }
