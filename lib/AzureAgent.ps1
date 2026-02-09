@@ -8,37 +8,110 @@ function Invoke-AzureAgent {
         [int]$MaxTokens = 2048
     )
 
-    $uri = "$($env:AZURE_OPENAI_ENDPOINT)/openai/deployments/$Deployment/chat/completions?api-version=$($env:AZURE_OPENAI_API_VERSION)"
-
-    $body = @{
-        messages = @(
-            @{ role = "system"; content = $SystemPrompt },
-            @{ role = "user"; content = $UserPrompt }
-        )
-        temperature = 0.1
-        max_tokens = $MaxTokens
-    } | ConvertTo-Json -Depth 12
-
+    $apiVer = $env:AZURE_OPENAI_API_VERSION
     $headers = @{
-        "Content-Type"  = "application/json"
-        "Authorization" = "Bearer $($env:AZURE_OPENAI_API_KEY)"
+        'Content-Type'  = 'application/json'
+        'Authorization' = "Bearer $($env:AZURE_OPENAI_API_KEY)"
     }
+
+    $bodyVariants = $null
+        if ($apiVer -and $apiVer -like '2025*') {
+            if ($env:AZURE_OPENAI_ENDPOINT -and $env:AZURE_OPENAI_ENDPOINT -match '/openai/responses') {
+                $uri = $env:AZURE_OPENAI_ENDPOINT
+                if ($uri -notmatch '\?') { $uri = "$uri?api-version=$apiVer" }
+                $bodyObj = @{
+                    model = $Deployment
+                    input = @(
+                        @{ role = 'system'; content = $SystemPrompt },
+                        @{ role = 'user'; content = $UserPrompt }
+                    )
+                    temperature = 0.1
+                    max_output_tokens = $MaxTokens
+                }
+            } else {
+                $uri = "$($env:AZURE_OPENAI_ENDPOINT)/openai/deployments/$Deployment/responses?api-version=$apiVer"
+                $bodyObj = @{
+                    deployment = $Deployment
+                    input = @(
+                        @{ role = 'system'; content = $SystemPrompt },
+                        @{ role = 'user'; content = $UserPrompt }
+                    )
+                    temperature = 0.1
+                    max_output_tokens = $MaxTokens
+                }
+            }
+        } else {
+            $uri = "$($env:AZURE_OPENAI_ENDPOINT)/openai/deployments/$Deployment/chat/completions?api-version=$apiVer"
+            $bodyObj = @{
+                messages = @(
+                    @{ role = "system"; content = $SystemPrompt },
+                    @{ role = "user"; content = $UserPrompt }
+                )
+                temperature = 0.1
+                max_tokens  = $MaxTokens
+            }
+        }
+
+        # Convert selected body object to JSON string for request
+        try {
+            $body = $bodyObj | ConvertTo-Json -Depth 12
+        } catch {
+            $body = (ConvertTo-Json $bodyObj -Depth 12)
+        }
 
     $maxRetries = 3
     $response = $null
+    $triedAlt = $false
     for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
         try {
+            Write-Host "Calling Azure OpenAI URI: $uri"
             $response = Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $body
             break
         } catch {
+            $errMsg = $_.Exception.Message
+            $respBody = $null
+            try {
+                if ($_.Exception.Response) {
+                    $respStream = $_.Exception.Response.GetResponseStream()
+                    $reader = New-Object System.IO.StreamReader($respStream)
+                    $respBody = $reader.ReadToEnd()
+                    $reader.Close()
+                    $errMsg = "$errMsg -- ResponseBody: $respBody"
+                    Write-Host "Azure error body: $respBody"
+                }
+            } catch {}
+
+            try {
+                if ($_.Exception.Response -and ($_.Exception.Response.StatusCode -eq 400 -or $respBody -match 'Bad Request') -and -not $triedAlt -and ($bodyVariants -ne $null)) {
+                    Write-Warning 'Responses API returned 400; retrying with alternate request body variant'
+                    $triedAlt = $true
+                    $body = $bodyVariants[1] | ConvertTo-Json -Depth 12
+                    Start-Sleep -Seconds 1
+                    continue
+                }
+            } catch {}
+
             if ($attempt -eq $maxRetries) {
-                throw "Azure OpenAI API call failed after $maxRetries attempts: $($_.Exception.Message)"
+                throw "Azure OpenAI API call failed after $maxRetries attempts: $errMsg"
             }
             $backoffSeconds = [Math]::Pow(2, $attempt)
-            Write-Warning "API call attempt $attempt failed, retrying in ${backoffSeconds}s: $($_.Exception.Message)"
+            Write-Warning "API call attempt $attempt failed, retrying in ${backoffSeconds}s: $errMsg"
             Start-Sleep -Seconds $backoffSeconds
         }
     }
+
+    if (-not $response) {
+        throw 'Azure OpenAI API returned no response'
+    }
+
+    # Persist raw response for debugging
+    try {
+        $logDir = Join-Path (Get-Location).Path 'tmp-logs'
+        if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+        $ts = (Get-Date).ToString('yyyyMMdd-HHmmss-fff')
+        $rawPath = Join-Path $logDir "azure-raw-$ts.json"
+        $response | ConvertTo-Json -Depth 20 | Out-File -FilePath $rawPath -Encoding utf8 -Force
+    } catch {}
 
     if ($response.usage) {
         Add-TokenUsage `
@@ -46,11 +119,38 @@ function Invoke-AzureAgent {
             -Completion $response.usage.completion_tokens
     }
 
-    if (-not $response.choices -or $response.choices.Count -eq 0) {
-        throw "Azure OpenAI returned empty choices array"
+    try {
+        if ($response.output -and $response.output.Count -gt 0) {
+            $pieces = @()
+            foreach ($seg in $response.output) {
+                # Responses API may contain 'message' objects or content arrays
+                if ($seg.type -and $seg.type -eq 'message' -and $seg.content) {
+                    foreach ($c in $seg.content) {
+                        if ($c.type -and $c.type -eq 'output_text' -and $c.text) { $pieces += $c.text }
+                        elseif ($c.text) { $pieces += $c.text }
+                    }
+                } elseif ($seg.content) {
+                    foreach ($c in $seg.content) {
+                        if ($c.text) { $pieces += $c.text }
+                    }
+                } elseif ($seg.text) {
+                    $pieces += $seg.text
+                }
+            }
+            $out = ($pieces -join "`n").Trim()
+            if ($out) {
+                # Always return cleaned text; strip markdown fences if present
+                $clean = $out -replace '(^```[a-zA-Z0-9\-]*\r?\n)|(```\r?\n$)', ''
+                return $clean.Trim()
+            }
+        }
+    } catch {}
+
+    if ($response.choices -and $response.choices.Count -gt 0) {
+        return $response.choices[0].message.content
     }
 
-    $response.choices[0].message.content
+    return ($response | ConvertTo-Json -Depth 6)
 }
 
 # J03: Streaming API responses via SSE
@@ -188,15 +288,38 @@ function Invoke-AzureAgentWithTools {
         [array]$Tools = @()
     )
 
-    $uri = "$($env:AZURE_OPENAI_ENDPOINT)/openai/deployments/$Deployment/chat/completions?api-version=$($env:AZURE_OPENAI_API_VERSION)"
-
-    $bodyObj = @{
-        messages = @(
-            @{ role = "system"; content = $SystemPrompt },
-            @{ role = "user"; content = $UserPrompt }
-        )
-        temperature = 0.1
-        max_tokens  = $MaxTokens
+    $apiVer = $env:AZURE_OPENAI_API_VERSION
+    if ($apiVer -and $apiVer -like '2025*') {
+        if ($env:AZURE_OPENAI_ENDPOINT -and $env:AZURE_OPENAI_ENDPOINT -match '/openai/responses') {
+            $uri = $env:AZURE_OPENAI_ENDPOINT
+            if ($uri -notmatch '\?') { $uri = "$uri?api-version=$apiVer" }
+            $bodyObj = @{
+                model = $Deployment
+                input = $UserPrompt
+                temperature = 0.1
+                max_output_tokens = $MaxTokens
+            }
+        } else {
+            $uri = "$($env:AZURE_OPENAI_ENDPOINT)/openai/deployments/$Deployment/responses?api-version=$apiVer"
+            $bodyObj = @{
+                deployment = $Deployment
+                input = $UserPrompt
+                temperature = 0.1
+                max_output_tokens = $MaxTokens
+            }
+        }
+        # For function calling we include messages in the bodyObj only for compatibility when needed
+        $bodyObj.system = $SystemPrompt
+    } else {
+        $uri = "$($env:AZURE_OPENAI_ENDPOINT)/openai/deployments/$Deployment/chat/completions?api-version=$($env:AZURE_OPENAI_API_VERSION)"
+        $bodyObj = @{
+            messages = @(
+                @{ role = "system"; content = $SystemPrompt },
+                @{ role = "user"; content = $UserPrompt }
+            )
+            temperature = 0.1
+            max_tokens  = $MaxTokens
+        }
     }
 
     # Add tools parameter if tools are provided
@@ -214,16 +337,57 @@ function Invoke-AzureAgentWithTools {
 
     $maxRetries = 3
     $response = $null
+    $triedAlt = $false
     for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
         try {
+            Write-Host "Calling Azure OpenAI (with tools) URI: $uri"
+            $body = $bodyObj | ConvertTo-Json -Depth 20
             $response = Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $body
             break
         } catch {
+            $errMsg = $_.Exception.Message
+            $respBody = $null
+            try {
+                if ($_.Exception.Response) {
+                    $respStream = $_.Exception.Response.GetResponseStream()
+                    $reader = New-Object System.IO.StreamReader($respStream)
+                    $respBody = $reader.ReadToEnd()
+                    $reader.Close()
+                    Write-Host "Azure (with tools) error body: $respBody"
+                }
+            } catch {}
+
+            # On 400 try alternate body using 'model' + simple input string when endpoint is a raw Responses URL
+            try {
+                if ($_.Exception.Response -and $_.Exception.Response.StatusCode -eq 400 -and -not $triedAlt -and $env:AZURE_OPENAI_ENDPOINT -and $env:AZURE_OPENAI_ENDPOINT -match '/openai/responses') {
+                    Write-Warning 'Responses API (with tools) returned 400; retrying with model-style body variant'
+                    $triedAlt = $true
+                    $altUri = $env:AZURE_OPENAI_ENDPOINT
+                    if ($altUri -notmatch '\?') { $altUri = "$altUri?api-version=$apiVer" }
+                    $altBody = @{
+                        model = $Deployment
+                        input = $UserPrompt
+                        temperature = 0.1
+                        max_output_tokens = $MaxTokens
+                        tools = $Tools
+                        tool_choice = 'auto'
+                    } | ConvertTo-Json -Depth 20
+                    Write-Host "Calling Azure OpenAI (with tools) ALT URI: $altUri"
+                    try {
+                        $response = Invoke-RestMethod -Method POST -Uri $altUri -Headers $headers -Body $altBody -ErrorAction Stop
+                        break
+                    } catch {
+                        # fall through to retry/backoff
+                        try { Write-Host "Alt error body: $($_.Exception.Response.GetResponseStream() | Out-String)" } catch {}
+                    }
+                }
+            } catch {}
+
             if ($attempt -eq $maxRetries) {
-                throw "Azure OpenAI API (with tools) call failed after $maxRetries attempts: $($_.Exception.Message)"
+                throw "Azure OpenAI API (with tools) call failed after $maxRetries attempts: $errMsg"
             }
             $backoffSeconds = [Math]::Pow(2, $attempt)
-            Write-Warning "API call (with tools) attempt $attempt failed, retrying in ${backoffSeconds}s: $($_.Exception.Message)"
+            Write-Warning "API call (with tools) attempt $attempt failed, retrying in ${backoffSeconds}s: $errMsg"
             Start-Sleep -Seconds $backoffSeconds
         }
     }

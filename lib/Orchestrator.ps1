@@ -324,7 +324,7 @@ function Invoke-ExplainError {
         $result.Explanation = "Expected closing brace '}' in C# code"
         $result.SuggestedAction = "Add the missing closing brace at the indicated location"
     }
-    elseif ($ErrorText -match 'CS0103.*?\'([^\']+)\'') {
+    elseif ($ErrorText -match "CS0103.*?'([^']+)'") {
         $result.Category = "UndefinedName"
         $result.Explanation = "The name '$($matches[1])' does not exist in the current context"
         $result.SuggestedAction = "Declare the variable '$($matches[1])' or add the correct using directive"
@@ -429,8 +429,22 @@ function Run-Agent {
             return 'NO_CHANGES'
         }
 
-        $response = Invoke-AzureAgent $Deployment $SystemPrompt $context
+        $formatHint = "OUTPUT_FORMAT: Reply with EXACTLY ONE of the following formats and NOTHING ELSE (no explanations, no extra text):`n`nOPTION A: Unified git diff (preferred) — response MUST start with: diff --git`n`nOPTION B: JSON object OR JSON array of tool-call objects. Each object MUST include a ""tool"" string field and any required tool-specific fields.`n`nIf no changes, reply exactly: NO_CHANGES`n`nDo NOT include any additional text, explanations, or markdown/code fences."
+        $response = Invoke-AzureAgent $Deployment $SystemPrompt "$context$formatHint"
         Write-DebugLog "$Role-response" $response
+
+        # Persist raw model response for debugging
+        try {
+            $repoRoot = (Get-Location).Path
+            $logDir = Join-Path $repoRoot 'tmp-logs'
+            if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+            $safeRole = ($Role -replace '[^a-zA-Z0-9_-]', '_')
+            $fileName = "$($safeRole)-response-iteration-$($iterations).txt"
+            $fullPath = Join-Path $logDir $fileName
+            $response | Out-File -FilePath $fullPath -Encoding utf8 -Force
+        } catch {
+            Write-DebugLog "log-dump-failed" $_.Exception.Message
+        }
 
         if ($response.TrimStart().StartsWith("diff --git") -or $response -eq "NO_CHANGES") {
             return $response
@@ -439,10 +453,47 @@ function Run-Agent {
         try {
             $json = $response | ConvertFrom-Json
         } catch {
-            Write-DebugLog "$Role-parse-error" "Failed to parse response as JSON: $($_.Exception.Message)"
-            return (New-AgentError -Type "parse_error" -Role $Role -Message "Failed to parse response as JSON: $($_.Exception.Message)")
+            Write-DebugLog "$Role-parse-error" "Failed to parse response as JSON: $($_.Exception.Message) - attempting tolerant parse"
+            # Attempt tolerant parsing: convert concatenated JSON objects into an array
+            try {
+                $maybe = "[$($response -replace '}' + "\s*" + '{','},{')]"
+                $json = $maybe | ConvertFrom-Json
+            } catch {
+                Write-DebugLog "$Role-parse-error2" "Tolerant parse failed: $($_.Exception.Message)"
+                return (New-AgentError -Type "parse_error" -Role $Role -Message "Failed to parse response as JSON: $($_.Exception.Message)")
+            }
         }
 
+        # If parsed JSON is an array, process each tool-call sequentially
+        if ($json -is [System.Array]) {
+            foreach ($item in $json) {
+                if (-not $item.tool) {
+                    Write-DebugLog "$Role-no-tool" "One of the response items is missing 'tool'"
+                    return (New-AgentError -Type "no_tool" -Role $Role -Message "One of the response items is missing 'tool'")
+                }
+                if (-not ($TOOL_PERMISSIONS[$Role] -contains $item.tool)) {
+                    throw "Forbidden tool $($item.tool) for role $Role"
+                }
+
+                # Build arguments hashtable from item properties (excluding 'tool')
+                $args = @{}
+                foreach ($p in $item.PSObject.Properties) {
+                    if ($p.Name -ne 'tool') { $args[$p.Name] = $p.Value }
+                }
+
+                try {
+                    $toolResult = Invoke-ToolCall -Role $Role -ToolName $item.tool -Arguments $args -Searches ([ref]$searches) -Opens ([ref]$opens) -Writes ([ref]$writes) -TestRuns ([ref]$testRuns) -CoverageRuns ([ref]$coverageRuns)
+                } catch {
+                    $toolResult = "TOOL_ERROR: $($_.Exception.Message)"
+                }
+
+                Write-DebugLog "$Role-array-tool-result" $toolResult
+                $context += "`n$($item.tool) result:`n$toolResult"
+            }
+
+            # After processing array, continue loop to ask model again
+            continue
+        }
         if (-not $json.tool) {
             Write-DebugLog "$Role-no-tool" "Response JSON missing 'tool' field"
             return (New-AgentError -Type "no_tool" -Role $Role -Message "Response JSON missing 'tool' field")
@@ -980,6 +1031,19 @@ function Run-AgentWithFunctionCalling {
         } catch {
             Write-DebugLog "$Role-fc-error" "Function calling API error: $($_.Exception.Message)"
             return (New-AgentError -Type "api_error" -Role $Role -Message $_.Exception.Message)
+        }
+
+        # Persist raw function-calling response for debugging
+        try {
+            $repoRoot = (Get-Location).Path
+            $logDir = Join-Path $repoRoot 'tmp-logs'
+            if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+            $safeRole = ($Role -replace '[^a-zA-Z0-9_-]', '_')
+            $fileName = "$($safeRole)-fc-response-iteration-$($iterations).json"
+            $fullPath = Join-Path $logDir $fileName
+            $response | ConvertTo-Json -Depth 10 | Out-File -FilePath $fullPath -Encoding utf8 -Force
+        } catch {
+            Write-DebugLog "log-dump-failed-fc" $_.Exception.Message
         }
 
         # If no tool calls, the model returned final content

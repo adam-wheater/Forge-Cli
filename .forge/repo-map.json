@@ -1,0 +1,204 @@
+{
+  "coreModules": [
+    {
+      "name": "AzureAgent",
+      "path": ".\\lib\\AzureAgent.ps1"
+    },
+    {
+      "name": "CallGraph",
+      "path": ".\\lib\\CallGraph.ps1"
+    },
+    {
+      "name": "ConfigLoader",
+      "path": ".\\lib\\ConfigLoader.ps1"
+    },
+    {
+      "name": "CostEstimator",
+      "path": ".\\lib\\CostEstimator.ps1"
+    },
+    {
+      "name": "CoverageAnalyser",
+      "path": ".\\lib\\CoverageAnalyser.ps1"
+    },
+    {
+      "name": "CSharpAnalyser",
+      "path": ".\\lib\\CSharpAnalyser.ps1"
+    },
+    {
+      "name": "DebugLogger",
+      "path": ".\\lib\\DebugLogger.ps1"
+    },
+    {
+      "name": "DecisionTrace",
+      "path": ".\\lib\\DecisionTrace.ps1"
+    },
+    {
+      "name": "DependencyGraph",
+      "path": ".\\lib\\DependencyGraph.ps1"
+    },
+    {
+      "name": "EdgeCaseGenerator",
+      "path": ".\\lib\\EdgeCaseGenerator.ps1"
+    },
+    {
+      "name": "Embeddings",
+      "path": ".\\lib\\Embeddings.ps1"
+    },
+    {
+      "name": "FoundryAgent",
+      "path": ".\\lib\\FoundryAgent.ps1"
+    },
+    {
+      "name": "ImportGraph",
+      "path": ".\\lib\\ImportGraph.ps1"
+    },
+    {
+      "name": "IntegrationTestGen",
+      "path": ".\\lib\\IntegrationTestGen.ps1"
+    },
+    {
+      "name": "MetricsTracker",
+      "path": ".\\lib\\MetricsTracker.ps1"
+    },
+    {
+      "name": "MockScaffolder",
+      "path": ".\\lib\\MockScaffolder.ps1"
+    },
+    {
+      "name": "Orchestrator",
+      "path": ".\\lib\\Orchestrator.ps1"
+    },
+    {
+      "name": "PatternLibrary",
+      "path": ".\\lib\\PatternLibrary.ps1"
+    },
+    {
+      "name": "PluginLoader",
+      "path": ".\\lib\\PluginLoader.ps1"
+    },
+    {
+      "name": "RedisCache",
+      "path": ".\\lib\\RedisCache.ps1"
+    },
+    {
+      "name": "RelevanceTracker",
+      "path": ".\\lib\\RelevanceTracker.ps1"
+    },
+    {
+      "name": "RepoMemory",
+      "path": ".\\lib\\RepoMemory.ps1"
+    },
+    {
+      "name": "RepoTools",
+      "path": ".\\lib\\RepoTools.ps1"
+    },
+    {
+      "name": "RoslynAnalyser",
+      "path": ".\\lib\\RoslynAnalyser.ps1"
+    },
+    {
+      "name": "StrykerRunner",
+      "path": ".\\lib\\StrykerRunner.ps1"
+    },
+    {
+      "name": "TestDataBuilder",
+      "path": ".\\lib\\TestDataBuilder.ps1"
+    },
+    {
+      "name": "TestStyleDetector",
+      "path": ".\\lib\\TestStyleDetector.ps1"
+    },
+    {
+      "name": "TokenBudget",
+      "path": ".\\lib\\TokenBudget.ps1"
+    }
+  ],
+  "scripts": [],
+  "entryPoints": [
+    ".\\run.ps1"
+  ],
+  "projectType": "powershell",
+  "testProjects": [
+    ".\\tests\\AgentTools.Tests.ps1",
+    ".\\tests\\AzureAgent.Tests.ps1",
+    ".\\tests\\ConfigLoader.Tests.ps1",
+    ".\\tests\\CSharpAnalyser.Tests.ps1",
+    ".\\tests\\DebugLogger.Tests.ps1",
+    ".\\tests\\Embeddings.Tests.ps1",
+    ".\\tests\\Integration.Tests.ps1",
+    ".\\tests\\Orchestrator.Tests.ps1",
+    ".\\tests\\RedisCache.Tests.ps1",
+    ".\\tests\\RepoMemory.Tests.ps1",
+    ".\\tests\\RepoTools.Tests.ps1",
+    ".\\tests\\TestStyleDetector.Tests.ps1",
+    ".\\tests\\TokenBudget.Tests.ps1",
+    ".\\tests\\fixtures\\SampleApi\\tests\\SampleApi.Tests\\SampleApi.Tests.csproj",
+    ".\\tmp-sample-repo\\tests\\SampleApi.Tests\\SampleApi.Tests.csproj"
+  ],
+  "agentPrompts": [
+    "builder.system",
+    "judge.system",
+    "reviewer.system",
+    "tools.system"
+  ],
+  "dependencies": {
+    "DebugLogger": [],
+    "ConfigLoader": [],
+    "TestDataBuilder": [
+      "CSharpAnalyser"
+    ],
+    "PatternLibrary": [],
+    "RoslynAnalyser": [],
+    "DecisionTrace": [],
+    "Orchestrator": [
+      "AzureAgent",
+      "RepoTools",
+      "ImportGraph",
+      "CallGraph",
+      "TokenBudget",
+      "DebugLogger",
+      "CSharpAnalyser"
+    ],
+    "EdgeCaseGenerator": [
+      "CSharpAnalyser"
+    ],
+    "RelevanceTracker": [],
+    "DependencyGraph": [],
+    "MockScaffolder": [
+      "CSharpAnalyser"
+    ],
+    "RepoTools": [
+      "RelevanceTracker"
+    ],
+    "ImportGraph": [],
+    "CallGraph": [],
+    "Embeddings": [
+      "CSharpAnalyser"
+    ],
+    "RepoMemory": [],
+    "CSharpAnalyser": [],
+    "PluginLoader": [],
+    "TokenBudget": [],
+    "IntegrationTestGen": [
+      "CSharpAnalyser"
+    ],
+    "CostEstimator": [
+      "TokenBudget",
+      "ConfigLoader"
+    ],
+    "TestStyleDetector": [],
+    "CoverageAnalyser": [],
+    "MetricsTracker": [
+      "TokenBudget"
+    ],
+    "StrykerRunner": [],
+    "AzureAgent": [
+      "TokenBudget"
+    ],
+    "RedisCache": [],
+    "FoundryAgent": [
+      "TokenBudget"
+    ]
+  },
+  "solution": "C:\\Users\\adamw\\source\\repos\\Forge-Cli\\tmp-sample-repo\\SampleApi.sln"
+}

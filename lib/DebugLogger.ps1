@@ -1,31 +1,43 @@
-$Global:DebugMode = $false
-$Global:LogRoot = Join-Path (Get-Location) "logs"
+param()
 
 function Init-Debug {
-    param ([Parameter(Mandatory)][bool]$Enabled)
-    $Global:DebugMode = $Enabled
-    if ($Enabled -and -not (Test-Path $Global:LogRoot)) {
-        New-Item -ItemType Directory -Path $Global:LogRoot | Out-Null
+    param(
+        [switch]$Enabled
+    )
+    try {
+        $global:FORGE_DEBUG = $false
+        if ($Enabled) { $global:FORGE_DEBUG = $true }
+
+        # Ensure repo-root tmp-logs exists
+        $repoRoot = (Resolve-Path "$PSScriptRoot\.." -ErrorAction SilentlyContinue).Path
+        if (-not $repoRoot) { $repoRoot = Get-Location }
+        $logDir = Join-Path $repoRoot 'tmp-logs'
+        if (-not (Test-Path $logDir)) { New-Item -Path $logDir -ItemType Directory -Force | Out-Null }
+        return $true
+    } catch {
+        return $false
     }
 }
 
 function Write-DebugLog {
-    param ($Category, $Content)
-    if (-not $Global:DebugMode) { return }
+    param(
+        [Parameter(Mandatory)][string]$Key,
+        [Parameter(Mandatory)][object]$Message
+    )
+    try {
+        if (-not $global:FORGE_DEBUG) { return }
+        $repoRoot = (Resolve-Path "$PSScriptRoot\.." -ErrorAction SilentlyContinue).Path
+        if (-not $repoRoot) { $repoRoot = Get-Location }
+        $logDir = Join-Path $repoRoot 'tmp-logs'
+        if (-not (Test-Path $logDir)) { New-Item -Path $logDir -ItemType Directory -Force | Out-Null }
 
-    # Sanitize category to prevent directory traversal
-    $safeCategory = $Category -replace '[^a-zA-Z0-9_\-]', '_'
-
-    $ts = Get-Date -Format "yyyyMMdd-HHmmss-fff"
-    $file = Join-Path $Global:LogRoot "$ts-$safeCategory.log"
-
-    # Verify the resolved path is still under LogRoot
-    $resolvedPath = [System.IO.Path]::GetFullPath($file)
-    $resolvedRoot = [System.IO.Path]::GetFullPath($Global:LogRoot)
-    if (-not $resolvedPath.StartsWith($resolvedRoot)) {
-        Write-Warning "DebugLog path traversal blocked: $file"
+        $ts = Get-Date -Format "yyyyMMddTHHmmssfff"
+        $file = Join-Path $logDir "debug-$Key.log"
+        $text = if ($Message -is [string]) { $Message } else { $Message | ConvertTo-Json -Depth 6 }
+        "$ts `t $text" | Out-File -FilePath $file -Encoding utf8 -Append -Force
+    } catch {
         return
     }
-
-    $Content | Out-File $file -Encoding utf8
 }
+
+# Note: do not export module members when sourced as a script
