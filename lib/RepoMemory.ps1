@@ -1,3 +1,4 @@
+# Default MemoryRoot — overridden by Initialize-RepoMemory to target project's .forge/ dir
 $Global:MemoryRoot = Join-Path $PSScriptRoot ".." "memory"
 
 function Get-MemoryPath {
@@ -67,6 +68,9 @@ function Write-MemoryFile {
 
 function Initialize-RepoMemory {
     param ([string]$ProjectDir = (Get-Location))
+
+    # Point memory at the target project, not the Forge CLI install dir
+    $Global:MemoryRoot = Join-Path $ProjectDir ".forge"
 
     $repoMap = @{
         solution     = $null
@@ -199,7 +203,7 @@ function Update-CodeIntel {
 
     # Get recently changed files from git
     try {
-        $gitChanges = git log --name-only --pretty=format: -10 2>$null | Where-Object { $_ -ne '' } | Select-Object -Unique -First 20
+        $gitChanges = git -C $ProjectDir log --name-only --pretty=format: -10 2>$null | Where-Object { $_ -ne '' } | Select-Object -Unique -First 20
         if ($gitChanges) {
             $intel.recentlyChanged = @($gitChanges)
         }
