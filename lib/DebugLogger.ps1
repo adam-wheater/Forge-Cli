@@ -32,7 +32,19 @@ function Write-DebugLog {
         if (-not (Test-Path $logDir)) { New-Item -Path $logDir -ItemType Directory -Force | Out-Null }
 
         $ts = Get-Date -Format "yyyyMMddTHHmmssfff"
-        $file = Join-Path $logDir "debug-$Key.log"
+        $safeKey = $Key -replace '[^a-zA-Z0-9_\-]', '_'
+        $file = Join-Path $logDir "debug-$safeKey.log"
+
+        # Rotate log file if > 10MB
+        if (Test-Path $file) {
+            $fileInfo = Get-Item $file
+            if ($fileInfo.Length -gt 10MB) {
+                $rotated = "$file.1"
+                if (Test-Path $rotated) { Remove-Item $rotated -Force }
+                Move-Item $file $rotated -Force
+            }
+        }
+
         $text = if ($Message -is [string]) { $Message } else { $Message | ConvertTo-Json -Depth 6 }
         "$ts `t $text" | Out-File -FilePath $file -Encoding utf8 -Append -Force
     } catch {

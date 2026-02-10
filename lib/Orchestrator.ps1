@@ -525,13 +525,15 @@ function Run-Agent {
 
         switch ($json.tool) {
             "search_files" {
-                if ($searches++ -ge $MAX_SEARCHES) { return 'NO_CHANGES' }
+                if ($searches -ge $MAX_SEARCHES) { return 'NO_CHANGES' }
+                $searches++
                 $results = Search-Files $json.pattern
                 Write-DebugLog "$Role-search" ($results -join "`n")
                 $context += "`nSEARCH_RESULTS:`n$($results -join "`n")"
             }
             "open_file" {
-                if ($opens++ -ge $MAX_OPENS) { return 'NO_CHANGES' }
+                if ($opens -ge $MAX_OPENS) { return 'NO_CHANGES' }
+                $opens++
                 $file = Open-File $json.path
                 $imports = Get-Imports $json.path
                 $ctors = Get-ConstructorDependencies $json.path
@@ -546,14 +548,16 @@ function Run-Agent {
                 $context += "`nDIFF:`n$diff"
             }
             "write_file" {
-                if ($writes++ -ge $MAX_WRITES) { return 'NO_CHANGES' }
+                if ($writes -ge $MAX_WRITES) { return 'NO_CHANGES' }
+                $writes++
                 $repoRoot = if ($json.repo_root) { $json.repo_root } else { (Get-Location).Path }
                 $result = Invoke-WriteFile -Path $json.path -Content $json.content -RepoRoot $repoRoot
                 Write-DebugLog "$Role-write" $result
                 $context += "`nWRITE_RESULT:`n$result"
             }
             "run_tests" {
-                if ($testRuns++ -ge $MAX_TEST_RUNS) { return 'NO_CHANGES' }
+                if ($testRuns -ge $MAX_TEST_RUNS) { return 'NO_CHANGES' }
+                $testRuns++
                 $repoRoot = if ($json.repo_root) { $json.repo_root } else { (Get-Location).Path }
                 $result = Invoke-RunTests -RepoRoot $repoRoot -Filter $json.filter
                 Write-DebugLog "$Role-tests" $result
@@ -566,7 +570,8 @@ function Run-Agent {
                 $context += "`nTEST_OUTPUT:`n$result"
             }
             "get_coverage" {
-                if ($coverageRuns++ -ge $MAX_COVERAGE_RUNS) { return 'NO_CHANGES' }
+                if ($coverageRuns -ge $MAX_COVERAGE_RUNS) { return 'NO_CHANGES' }
+                $coverageRuns++
                 $repoRoot = if ($json.repo_root) { $json.repo_root } else { (Get-Location).Path }
                 $result = Invoke-GetCoverage -RepoRoot $repoRoot
                 Write-DebugLog "$Role-coverage" $result

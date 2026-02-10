@@ -1,8 +1,35 @@
+<#
+.SYNOPSIS
+    Forge CLI — AI-powered automated test generation and code fix loop.
+.DESCRIPTION
+    Clones a repository, iterates through build/test/fix cycles using Azure OpenAI
+    agents (builder, reviewer, judge), and commits passing fixes automatically.
+.PARAMETER RepoUrl
+    URL of the git repository to clone (required).
+.PARAMETER RepoName
+    Directory name for the clone. Derived from RepoUrl if omitted.
+.PARAMETER Branch
+    Branch name to create for AI changes. Default: ai/unit-tests.
+.PARAMETER MaxLoops
+    Maximum build/test/fix iterations. Must be 1-1000. Default: 8.
+.PARAMETER DebugMode
+    Enable verbose debug logging to tmp-logs/.
+.PARAMETER InteractiveMode
+    Pause after judge selects a patch for user approval.
+.PARAMETER DryRun
+    Show what the pipeline would do without applying patches or committing.
+.PARAMETER ConfigPath
+    Path to forge.config.json. Default: forge.config.json in script root.
+.PARAMETER UseWorktrees
+    Isolate each builder hypothesis in a separate git worktree.
+.PARAMETER CIMode
+    CI mode: structured JSON output, no prompts, exit codes.
+#>
 param (
     [string]$RepoUrl,
     [string]$RepoName,
     [string]$Branch = "ai/unit-tests",
-    [int]$MaxLoops = 8,
+    [ValidateRange(1, 1000)][int]$MaxLoops = 8,
     [switch]$DebugMode,
     [switch]$InteractiveMode,     # K05: pause after judge, ask user approval
     [switch]$DryRun,              # K06: run pipeline without applying patches or committing
@@ -10,6 +37,22 @@ param (
     [switch]$UseWorktrees,        # J08: git worktree isolation per builder hypothesis
     [switch]$CIMode               # J09: CI mode — structured JSON output, no prompts, exit codes
 )
+
+# Auto-load .env file (set vars only if not already in environment)
+$envFile = Join-Path $PSScriptRoot ".env"
+if (Test-Path $envFile) {
+    foreach ($line in Get-Content $envFile) {
+        $line = $line.Trim()
+        if ($line -eq "" -or $line.StartsWith("#")) { continue }
+        if ($line -match '^([A-Za-z_][A-Za-z0-9_]*)=(.*)$') {
+            $varName = $Matches[1]
+            $varValue = $Matches[2] -replace "^[`"']|[`"']$", ''
+            if (-not [System.Environment]::GetEnvironmentVariable($varName)) {
+                [System.Environment]::SetEnvironmentVariable($varName, $varValue)
+            }
+        }
+    }
+}
 
 # Load configuration (J01)
 . "$PSScriptRoot/lib/ConfigLoader.ps1"
@@ -37,6 +80,8 @@ if (-not $PSBoundParameters.ContainsKey('DebugMode') -and $config.debugMode) {
 $Global:MAX_TOTAL_TOKENS = $config.maxTotalTokens
 $Global:MAX_ITERATION_TOKENS = $config.maxIterationTokens
 $Global:MAX_COST_GBP = $config.maxCostGBP
+$Global:PROMPT_COST_PER_1K = $config.promptCostPer1K
+$Global:COMPLETION_COST_PER_1K = $config.completionCostPer1K
 
 # Wire config deployment values to env vars if not already set
 if ($config.builderDeployment -and -not $env:BUILDER_DEPLOYMENT) {
@@ -76,13 +121,28 @@ if ($CIMode) {
     $InteractiveMode = [switch]::new($false)
 }
 
-git clone $RepoUrl
-if ($LASTEXITCODE -ne 0) { throw "git clone failed for $RepoUrl (exit code $LASTEXITCODE)" }
+# Save original directory for cleanup
+$originalDir = (Get-Location).Path
+
+if (Test-Path $RepoName) {
+    Write-ForgeStatus "Directory '$RepoName' already exists — reusing" "info"
+} else {
+    git clone $RepoUrl $RepoName
+    if ($LASTEXITCODE -ne 0) { throw "git clone failed for $RepoUrl (exit code $LASTEXITCODE)" }
+}
 
 Set-Location $RepoName
 
-git checkout -b $Branch
-if ($LASTEXITCODE -ne 0) { throw "git checkout -b $Branch failed (exit code $LASTEXITCODE)" }
+# Check if branch already exists before creating
+$branchExists = git branch --list $Branch 2>$null
+if ($branchExists) {
+    git checkout $Branch
+} else {
+    git checkout -b $Branch
+}
+if ($LASTEXITCODE -ne 0) { throw "git checkout $Branch failed (exit code $LASTEXITCODE)" }
+
+try {
 
 . "$PSScriptRoot/lib/Orchestrator.ps1"
 . "$PSScriptRoot/lib/RepoMemory.ps1"
@@ -223,6 +283,21 @@ function Repair-Patch {
     }
 }
 
+# Helper: clean up git worktrees and temp directories
+function Remove-Worktrees {
+    param(
+        [array]$Worktrees,
+        [string]$WorktreeDir
+    )
+    foreach ($wt in $Worktrees) {
+        try { git worktree remove $wt.Path --force 2>&1 | Out-Null } catch {}
+        try { git branch -D $wt.Branch 2>&1 | Out-Null } catch {}
+    }
+    if ($WorktreeDir -and (Test-Path $WorktreeDir)) {
+        Remove-Item $WorktreeDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 # Wire K modules: Initialize metrics tracking if MetricsTracker.ps1 is loaded
 if (Get-Command Initialize-Metrics -ErrorAction SilentlyContinue) {
     try {
@@ -275,6 +350,18 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     Write-IterationHeader -Iteration $i -MaxLoops $MaxLoops
     $ciResult.iterations = $i
 
+    # Pre-iteration budget check — halt before spending more
+    $preTokens = Get-TotalTokens
+    $preCost = Get-CurrentCostGBP
+    if ($preTokens -ge $Global:MAX_TOTAL_TOKENS) {
+        Write-ForgeStatus "Token budget exhausted ($preTokens >= $($Global:MAX_TOTAL_TOKENS)) — stopping" "error"
+        break
+    }
+    if ($preCost -ge $Global:MAX_COST_GBP) {
+        Write-ForgeStatus "Cost budget exhausted ($([math]::Round($preCost, 4)) >= $($Global:MAX_COST_GBP) GBP) — stopping" "error"
+        break
+    }
+
     # Wire K modules: Add metric event for iteration start
     if (Get-Command Add-MetricEvent -ErrorAction SilentlyContinue) {
         try { Add-MetricEvent -Event "iteration_start" -Data @{ iteration = $i } } catch {}
@@ -306,7 +393,9 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         # C110: Reset working tree to prevent failed patches from accumulating
         git checkout -- .
         if ($LASTEXITCODE -ne 0) {
+            Write-ForgeStatus "git checkout -- . failed — aborting to prevent dirty state" "error"
             Write-DebugLog "git-reset-failed" "git checkout -- . failed (exit code $LASTEXITCODE)"
+            break
         }
     }
     $keepPatches = $false  # Reset for this iteration; set true below if patch preserved
@@ -594,7 +683,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         Write-ForgeStatus "Judge selected patch:" "info"
         Write-Host $chosen
         Write-Host ""
-        $response = Read-Host "Apply this patch? (y)es / (n)o / (s)kip iteration"
+        $response = Read-Host "Apply this patch? (y)es / (n)o / (s)kip iteration / (q)uit"
         if ($response -eq 'n') {
             Write-ForgeStatus "User rejected patch. Stopping." "warning"
             exit 1
@@ -602,6 +691,10 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         if ($response -eq 's') {
             Write-ForgeStatus "User skipped iteration." "warning"
             continue
+        }
+        if ($response -eq 'q') {
+            Write-ForgeStatus "User quit." "info"
+            exit 0
         }
     }
 
@@ -611,14 +704,10 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         Write-DebugLog "invalid-patch" "Chosen patch is not a valid unified diff"
         Save-RunState -Iteration $i -BuildOk $false -TestOk $false `
             -Attempts @($hypotheses) -DiffSummary "Invalid patch format"
-        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
+        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget exceeded: $($_.Exception.Message)" "error"; Write-DebugLog "budget-exceeded" $_.Exception.Message; break }
         # J08: Clean up worktrees
         if ($UseWorktrees -and $worktrees.Count -gt 0) {
-            foreach ($wt in $worktrees) {
-                try { git worktree remove $wt.Path --force 2>&1 | Out-Null } catch {}
-                try { git branch -D $wt.Branch 2>&1 | Out-Null } catch {}
-            }
-            if ($worktreeDir -and (Test-Path $worktreeDir)) { Remove-Item $worktreeDir -Recurse -Force -ErrorAction SilentlyContinue }
+            Remove-Worktrees -Worktrees $worktrees -WorktreeDir $worktreeDir
         }
         continue
     }
@@ -627,26 +716,28 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     if ($DryRun) {
         Write-ForgeStatus "DRY RUN — Would apply patch:" "warning"
         Write-Host $chosen
-        Write-ForgeStatus "DRY RUN — Skipping build, test, and commit" "warning"
-        # Still update memory and enforce budgets
+        Write-ForgeStatus "DRY RUN — Exiting after first iteration preview" "warning"
         Save-RunState -Iteration $i -BuildOk $true -TestOk $true `
             -DiffSummary "Dry run — patch not applied"
-        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
         # J08: Clean up worktrees
         if ($UseWorktrees -and $worktrees.Count -gt 0) {
-            foreach ($wt in $worktrees) {
-                try { git worktree remove $wt.Path --force 2>&1 | Out-Null } catch {}
-                try { git branch -D $wt.Branch 2>&1 | Out-Null } catch {}
-            }
-            if ($worktreeDir -and (Test-Path $worktreeDir)) { Remove-Item $worktreeDir -Recurse -Force -ErrorAction SilentlyContinue }
+            Remove-Worktrees -Worktrees $worktrees -WorktreeDir $worktreeDir
         }
-        continue
+        break
     }
 
     $normalized = Normalize-Patch $chosen
     # Try repairing the normalized patch to increase chance of git apply
     $repaired = Repair-Patch -patchText $normalized -repoRoot (Get-Location).Path
     $repaired | Out-File ai.patch -Encoding utf8
+
+    # Pre-check patch before applying
+    git apply --check ai.patch 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-ForgeStatus "Patch fails --check — attempting apply anyway" "warning"
+        Write-DebugLog "apply-check-failed" "git apply --check failed (exit code $LASTEXITCODE)"
+    }
+
     Write-ForgeStatus "Applying patch..." "progress"
     git apply ai.patch
     if ($LASTEXITCODE -ne 0) {
@@ -654,14 +745,10 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         Write-DebugLog "apply-failed" "git apply failed (exit code $LASTEXITCODE)"
         Save-RunState -Iteration $i -BuildOk $false -TestOk $false `
             -Attempts @($hypotheses) -DiffSummary "git apply failed"
-        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
+        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget exceeded: $($_.Exception.Message)" "error"; Write-DebugLog "budget-exceeded" $_.Exception.Message; break }
         # J08: Clean up worktrees
         if ($UseWorktrees -and $worktrees.Count -gt 0) {
-            foreach ($wt in $worktrees) {
-                try { git worktree remove $wt.Path --force 2>&1 | Out-Null } catch {}
-                try { git branch -D $wt.Branch 2>&1 | Out-Null } catch {}
-            }
-            if ($worktreeDir -and (Test-Path $worktreeDir)) { Remove-Item $worktreeDir -Recurse -Force -ErrorAction SilentlyContinue }
+            Remove-Worktrees -Worktrees $worktrees -WorktreeDir $worktreeDir
         }
         continue
     }
@@ -678,16 +765,36 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         Write-DebugLog "build-skip" "PowerShell project — no build step required"
     } else {
         Write-ForgeStatus "Building project..." "progress"
-        dotnet build
+        $buildJob = Start-Job -ScriptBlock { param($dir) Set-Location $dir; dotnet build 2>&1 | Out-String } -ArgumentList (Get-Location).Path
+        $buildCompleted = $buildJob | Wait-Job -Timeout 300
+        if (-not $buildCompleted) {
+            $buildJob | Stop-Job
+            $buildJob | Remove-Job -Force
+            $buildOk = $false
+            $buildOutput = "BUILD_TIMEOUT: Build exceeded 300 second limit"
+            Write-ForgeStatus "Build timed out after 300s" "error"
+        } else {
+            $buildOutput = $buildJob | Receive-Job
+            $buildJob | Remove-Job -Force
+            # Check if build output indicates failure
+            if ($buildOutput -match 'Build FAILED' -or $buildOutput -match 'error (CS|MSB)\d+') {
+                $LASTEXITCODE = 1
+            } else {
+                $LASTEXITCODE = 0
+            }
+        }
         if ($LASTEXITCODE -ne 0) {
             $buildOk = $false
-            Write-ForgeStatus "Build failed (exit code $LASTEXITCODE)" "error"
+            Write-ForgeStatus "Build failed" "error"
+            # Show last 20 lines of build output for diagnostics
+            $buildLines = ($buildOutput -split "`n") | Select-Object -Last 20
+            foreach ($bl in $buildLines) { Write-Host $bl -ForegroundColor Red }
             # Save run state with build failure
             Save-RunState -Iteration $i -BuildOk $false -TestOk $false `
                 -Attempts @($hypotheses) `
                 -DiffSummary "Build failed after applying patch"
             Update-CodeIntel (Get-Location)
-            try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
+            try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget exceeded: $($_.Exception.Message)" "error"; Write-DebugLog "budget-exceeded" $_.Exception.Message; break }
             # J08: Clean up worktrees
             if ($UseWorktrees -and $worktrees.Count -gt 0) {
                 foreach ($wt in $worktrees) {
@@ -705,7 +812,22 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     if ($repoMap.projectType -eq "powershell") {
         $testOutput = Invoke-Pester -PassThru 2>&1 | Out-String
     } else {
-        $testOutput = dotnet test 2>&1 | Out-String
+        $testJob = Start-Job -ScriptBlock { param($dir) Set-Location $dir; dotnet test 2>&1 | Out-String } -ArgumentList (Get-Location).Path
+        $testCompleted = $testJob | Wait-Job -Timeout 300
+        if (-not $testCompleted) {
+            $testJob | Stop-Job
+            $testJob | Remove-Job -Force
+            $testOutput = "TEST_TIMEOUT: Tests exceeded 300 second limit"
+            $LASTEXITCODE = 1
+        } else {
+            $testOutput = $testJob | Receive-Job
+            $testJob | Remove-Job -Force
+            if ($testOutput -match 'Failed!' -or $testOutput -match 'Failed:\s+\d+') {
+                $LASTEXITCODE = 1
+            } else {
+                $LASTEXITCODE = 0
+            }
+        }
     }
     Write-DebugLog "test-output" $testOutput
 
@@ -768,7 +890,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         $context = $toolsBase + "`n" + (Get-MemorySummary -Focus $failedFiles)
         $context += "`nTEST_FAILURES:`n$testOutput"
         $context += "`nLAST_DIFF:`n$(git diff)"
-        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
+        try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget exceeded: $($_.Exception.Message)" "error"; Write-DebugLog "budget-exceeded" $_.Exception.Message; break }
 
         # Wire K modules: Add metric event for iteration end (failure)
         if (Get-Command Add-MetricEvent -ErrorAction SilentlyContinue) {
@@ -777,11 +899,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
 
         # J08: Clean up worktrees
         if ($UseWorktrees -and $worktrees.Count -gt 0) {
-            foreach ($wt in $worktrees) {
-                try { git worktree remove $wt.Path --force 2>&1 | Out-Null } catch {}
-                try { git branch -D $wt.Branch 2>&1 | Out-Null } catch {}
-            }
-            if ($worktreeDir -and (Test-Path $worktreeDir)) { Remove-Item $worktreeDir -Recurse -Force -ErrorAction SilentlyContinue }
+            Remove-Worktrees -Worktrees $worktrees -WorktreeDir $worktreeDir
         }
         continue
     }
@@ -791,7 +909,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     Save-RunState -Iteration $i -BuildOk $true -TestOk $true `
         -DiffSummary "Tests passed on iteration $i"
     Update-CodeIntel (Get-Location)
-    try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget warning: $($_.Exception.Message)" "warning"; Write-DebugLog "budget-warning" $_.Exception.Message }
+    try { Enforce-Budgets $iterationStart } catch { Write-ForgeStatus "Budget exceeded: $($_.Exception.Message)" "error"; Write-DebugLog "budget-exceeded" $_.Exception.Message; break }
 
     # Wire K modules: Add metric event for iteration end (success)
     if (Get-Command Add-MetricEvent -ErrorAction SilentlyContinue) {
@@ -800,11 +918,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
 
     # J08: Clean up worktrees after success
     if ($UseWorktrees -and $worktrees.Count -gt 0) {
-        foreach ($wt in $worktrees) {
-            try { git worktree remove $wt.Path --force 2>&1 | Out-Null } catch {}
-            try { git branch -D $wt.Branch 2>&1 | Out-Null } catch {}
-        }
-        if ($worktreeDir -and (Test-Path $worktreeDir)) { Remove-Item $worktreeDir -Recurse -Force -ErrorAction SilentlyContinue }
+        Remove-Worktrees -Worktrees $worktrees -WorktreeDir $worktreeDir
     }
 
     Write-ForgeStatus "Committing changes..." "progress"
@@ -941,3 +1055,7 @@ if ($CIMode) {
 }
 
 throw "Failed after $MaxLoops iterations"
+
+} finally {
+    Set-Location $originalDir
+}

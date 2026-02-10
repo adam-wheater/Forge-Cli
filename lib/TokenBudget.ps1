@@ -1,5 +1,5 @@
-$Global:PromptTokens = 0
-$Global:CompletionTokens = 0
+[long]$Global:PromptTokens = 0
+[long]$Global:CompletionTokens = 0
 
 $Global:MAX_TOTAL_TOKENS = 200000
 $Global:MAX_ITERATION_TOKENS = 40000
@@ -10,14 +10,14 @@ $Global:MAX_COST_GBP = 25.00
 
 function Add-TokenUsage {
     param (
-        [Parameter(Mandatory)][int]$Prompt,
-        [Parameter(Mandatory)][int]$Completion
+        [Parameter(Mandatory)][long]$Prompt,
+        [Parameter(Mandatory)][long]$Completion
     )
-    if ([int]$Prompt -lt 0 -or [int]$Completion -lt 0) {
+    if ($Prompt -lt 0 -or $Completion -lt 0) {
         throw "Token values must be non-negative integers."
     }
-    $Global:PromptTokens += [int]$Prompt
-    $Global:CompletionTokens += [int]$Completion
+    $Global:PromptTokens += $Prompt
+    $Global:CompletionTokens += $Completion
 }
 
 function Get-TotalTokens {
@@ -33,8 +33,8 @@ function Enforce-Budgets {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
-        [ValidateRange(0, [int]::MaxValue)]
-        [int]$IterationStartTokens
+        [ValidateRange(0, [long]::MaxValue)]
+        [long]$IterationStartTokens
     )
 
     $totalTokens = Get-TotalTokens

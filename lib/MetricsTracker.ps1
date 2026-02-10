@@ -43,7 +43,7 @@ function Add-MetricEvent {
 function Save-Metrics {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory)][string]$OutputPath
+        [string]$OutputPath = (Join-Path (Get-Location).Path "tmp-logs" "forge-metrics.json")
     )
 
     if (-not $Global:MetricsSession) {

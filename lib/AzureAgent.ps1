@@ -69,7 +69,7 @@ function Invoke-AzureAgent {
     # Build URI and body based on API version
     # Responses API docs: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/responses
     $altBodyObj = $null
-    if ($apiVer -and $apiVer -like '2025*') {
+    if ($apiVer -and ($apiVer -match '^20(2[5-9]|[3-9]\d)' -or ($Global:ForgeConfig -and $Global:ForgeConfig['useResponsesApi']))) {
         if ($env:AZURE_OPENAI_ENDPOINT -and $env:AZURE_OPENAI_ENDPOINT -match '/openai/(v1/)?responses') {
             # Caller supplied the full Responses API URL
             $uri = $env:AZURE_OPENAI_ENDPOINT
@@ -120,7 +120,7 @@ function Invoke-AzureAgent {
     for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
         try {
             Write-Host "Calling Azure OpenAI URI: $uri"
-            $response = Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $body
+            $response = Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $body -TimeoutSec 120
             break
         } catch {
             $errMsg = $_.Exception.Message
@@ -131,8 +131,10 @@ function Invoke-AzureAgent {
                     $reader = New-Object System.IO.StreamReader($respStream)
                     $respBody = $reader.ReadToEnd()
                     $reader.Close()
-                    $errMsg = "$errMsg -- ResponseBody: $respBody"
-                    Write-Host "Azure error body: $respBody"
+                    $safeBody = $respBody -replace '(?i)(api-key|password|secret|token)\s*[:=]\s*\S+', '$1=***'
+                    if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
+                    $errMsg = "$errMsg -- ResponseBody: $safeBody"
+                    Write-Host "Azure error body: $safeBody"
                 }
             } catch {}
 
@@ -157,7 +159,7 @@ function Invoke-AzureAgent {
             if ($attempt -eq $maxRetries) {
                 throw "Azure OpenAI API call failed after $maxRetries attempts: $errMsg"
             }
-            $backoffSeconds = [Math]::Pow(2, $attempt)
+            $backoffSeconds = [Math]::Min([Math]::Pow(2, $attempt), 30)
             Write-Warning "API call attempt $attempt failed, retrying in ${backoffSeconds}s: $errMsg"
             Start-Sleep -Seconds $backoffSeconds
         }
@@ -167,14 +169,16 @@ function Invoke-AzureAgent {
         throw 'Azure OpenAI API returned no response'
     }
 
-    # Persist raw response for debugging
-    try {
-        $logDir = Join-Path (Get-Location).Path 'tmp-logs'
-        if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
-        $ts = (Get-Date).ToString('yyyyMMdd-HHmmss-fff')
-        $rawPath = Join-Path $logDir "azure-raw-$ts.json"
-        $response | ConvertTo-Json -Depth 20 | Out-File -FilePath $rawPath -Encoding utf8 -Force
-    } catch {}
+    # Persist raw response for debugging (only in debug mode to avoid disk fill)
+    if ($global:FORGE_DEBUG) {
+        try {
+            $logDir = Join-Path (Get-Location).Path 'tmp-logs'
+            if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+            $ts = (Get-Date).ToString('yyyyMMdd-HHmmss-fff')
+            $rawPath = Join-Path $logDir "azure-raw-$ts.json"
+            $response | ConvertTo-Json -Depth 20 | Out-File -FilePath $rawPath -Encoding utf8 -Force
+        } catch {}
+    }
 
     Read-TokenUsage $response
 
@@ -215,7 +219,7 @@ function Invoke-AzureAgentStream {
 
     # Responses API (2025*) uses a different SSE format; fall back to non-streaming for safety
     $apiVer = $env:AZURE_OPENAI_API_VERSION
-    if ($apiVer -and $apiVer -like '2025*') {
+    if ($apiVer -and ($apiVer -match '^20(2[5-9]|[3-9]\d)' -or ($Global:ForgeConfig -and $Global:ForgeConfig['useResponsesApi']))) {
         return Invoke-AzureAgent -Deployment $Deployment -SystemPrompt $SystemPrompt -UserPrompt $UserPrompt -MaxTokens $MaxTokens
     }
 
@@ -291,7 +295,7 @@ function Invoke-AzureAgentStream {
             if ($attempt -eq $maxRetries) {
                 throw "Azure OpenAI streaming API call failed after $maxRetries attempts: $($_.Exception.Message)"
             }
-            $backoffSeconds = [Math]::Pow(2, $attempt)
+            $backoffSeconds = [Math]::Min([Math]::Pow(2, $attempt), 30)
             Write-Warning "Streaming API call attempt $attempt failed, retrying in ${backoffSeconds}s: $($_.Exception.Message)"
             Start-Sleep -Seconds $backoffSeconds
         }
@@ -321,7 +325,7 @@ function Invoke-AzureAgentWithTools {
     $apiVer = $env:AZURE_OPENAI_API_VERSION
     $headers = Get-AzureAuthHeaders
 
-    if ($apiVer -and $apiVer -like '2025*') {
+    if ($apiVer -and ($apiVer -match '^20(2[5-9]|[3-9]\d)' -or ($Global:ForgeConfig -and $Global:ForgeConfig['useResponsesApi']))) {
         if ($env:AZURE_OPENAI_ENDPOINT -and $env:AZURE_OPENAI_ENDPOINT -match '/openai/(v1/)?responses') {
             $uri = $env:AZURE_OPENAI_ENDPOINT
         } else {
@@ -359,7 +363,7 @@ function Invoke-AzureAgentWithTools {
         try {
             $body = $bodyObj | ConvertTo-Json -Depth 20
             Write-Host "Calling Azure OpenAI (with tools) URI: $uri"
-            $response = Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $body
+            $response = Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $body -TimeoutSec 120
             break
         } catch {
             $errMsg = $_.Exception.Message
@@ -370,12 +374,14 @@ function Invoke-AzureAgentWithTools {
                     $reader = New-Object System.IO.StreamReader($respStream)
                     $respBody = $reader.ReadToEnd()
                     $reader.Close()
-                    Write-Host "Azure (with tools) error body: $respBody"
+                    $safeBody = $respBody -replace '(?i)(api-key|password|secret|token)\s*[:=]\s*\S+', '$1=***'
+                    if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
+                    Write-Host "Azure (with tools) error body: $safeBody"
                 }
             } catch {}
 
             # On 400 try with input as message array instead of string
-            if (-not $triedAlt -and $apiVer -and $apiVer -like '2025*') {
+            if (-not $triedAlt -and $apiVer -and ($apiVer -match '^20(2[5-9]|[3-9]\d)' -or ($Global:ForgeConfig -and $Global:ForgeConfig['useResponsesApi']))) {
                 try {
                     $statusCode = [int]$_.Exception.Response.StatusCode
                 } catch { $statusCode = 0 }
@@ -391,7 +397,7 @@ function Invoke-AzureAgentWithTools {
             if ($attempt -eq $maxRetries) {
                 throw "Azure OpenAI API (with tools) call failed after $maxRetries attempts: $errMsg"
             }
-            $backoffSeconds = [Math]::Pow(2, $attempt)
+            $backoffSeconds = [Math]::Min([Math]::Pow(2, $attempt), 30)
             Write-Warning "API call (with tools) attempt $attempt failed, retrying in ${backoffSeconds}s: $errMsg"
             Start-Sleep -Seconds $backoffSeconds
         }

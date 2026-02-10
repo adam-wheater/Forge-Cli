@@ -4,6 +4,9 @@ vibe/.ai-metrics/
 # Secrets
 .env
 
+# Runtime state
+.forge/
+
 # OS
 .DS_Store
 Thumbs.db

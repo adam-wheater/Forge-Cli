@@ -22,6 +22,7 @@ $script:ConfigDefaults = @{
     debugMode             = $false
     interactiveMode       = $false
     dryRun                = $false
+    useResponsesApi       = $false
 }
 
 # Env var name → config key mapping
@@ -46,6 +47,7 @@ $script:EnvVarMap = @{
     FORGE_DEBUG_MODE             = "debugMode"
     FORGE_INTERACTIVE_MODE       = "interactiveMode"
     FORGE_DRY_RUN                = "dryRun"
+    FORGE_USE_RESPONSES_API      = "useResponsesApi"
 }
 
 function Load-ForgeConfig {
@@ -97,6 +99,17 @@ function Load-ForgeConfig {
         }
     }
 
+    # Auto-validate and throw on critical config errors
+    $configWarnings = Test-ForgeConfig $config
+    $criticalKeys = @('maxLoops', 'maxTotalTokens', 'maxCostGBP')
+    foreach ($w in $configWarnings) {
+        foreach ($ck in $criticalKeys) {
+            if ($w -match "^$ck\b") {
+                throw "Config validation error: $w"
+            }
+        }
+    }
+
     $Global:ForgeConfig = $config
     return $config
 }
@@ -142,6 +155,14 @@ function Test-ForgeConfig {
     }
     if ($Config.embeddingEndpoint -and -not $Config.embeddingEndpoint.StartsWith("https://")) {
         $warnings += "embeddingEndpoint should start with https:// (got '$($Config.embeddingEndpoint)')"
+    }
+
+    # Embedding consistency
+    if ($Config.embeddingEndpoint -and -not $Config.embeddingModel) {
+        $warnings += "embeddingEndpoint is set but embeddingModel is empty"
+    }
+    if ($Config.embeddingApiKey -and -not $Config.embeddingEndpoint) {
+        $warnings += "embeddingApiKey is set but embeddingEndpoint is empty"
     }
 
     # Deployment presence checks

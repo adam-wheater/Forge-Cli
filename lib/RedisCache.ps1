@@ -67,10 +67,9 @@ function Set-CacheValue {
             ttl   = $TtlSeconds
         } | ConvertTo-Json
 
-        Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -Body $body -ErrorAction Stop | Out-Null
+        Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -Body $body -TimeoutSec 10 -ErrorAction Stop | Out-Null
     } catch {
-        # Fall back silently if Redis unavailable
-        Write-Warning "Redis SET failed for key '${Key}': $($_.Exception.Message)"
+        Write-Warning "Redis SET failed for key '${Key}': $($_.Exception.Message) — falling back to local filesystem"
     }
 }
 
@@ -87,10 +86,10 @@ function Get-CacheValue {
         $headers = @{
             "Authorization" = "Bearer $($Global:RedisPassword)"
         }
-        $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers -ErrorAction Stop
+        $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers -TimeoutSec 10 -ErrorAction Stop
         return $response.value
     } catch {
-        # Return null silently if Redis unavailable or key missing
+        Write-Warning "Redis GET failed for key '${Key}': $($_.Exception.Message) — falling back to local filesystem"
         return $null
     }
 }
@@ -108,7 +107,7 @@ function Remove-CacheValue {
         $headers = @{
             "Authorization" = "Bearer $($Global:RedisPassword)"
         }
-        Invoke-RestMethod -Uri $uri -Method Delete -Headers $headers -ErrorAction Stop | Out-Null
+        Invoke-RestMethod -Uri $uri -Method Delete -Headers $headers -TimeoutSec 10 -ErrorAction Stop | Out-Null
     } catch {
         Write-Warning "Redis DELETE failed for key '${Key}': $($_.Exception.Message)"
     }
@@ -127,7 +126,7 @@ function Search-CacheKeys {
         $headers = @{
             "Authorization" = "Bearer $($Global:RedisPassword)"
         }
-        $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers -ErrorAction Stop
+        $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers -TimeoutSec 10 -ErrorAction Stop
         return @($response.keys)
     } catch {
         return @()
