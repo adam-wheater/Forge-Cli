@@ -14,6 +14,8 @@ $script:ConfigDefaults = @{
     memoryBackend         = "local"
     redisConnectionString = ""
     embeddingModel        = "text-embedding-3-small"
+    embeddingEndpoint     = ""
+    embeddingApiKey       = ""
     builderDeployment     = ""
     judgeDeployment       = ""
     reviewerDeployment    = ""
@@ -36,6 +38,8 @@ $script:EnvVarMap = @{
     FORGE_MEMORY_BACKEND         = "memoryBackend"
     REDIS_CONNECTION_STRING      = "redisConnectionString"
     FORGE_EMBEDDING_MODEL        = "embeddingModel"
+    FORGE_EMBEDDING_ENDPOINT     = "embeddingEndpoint"
+    FORGE_EMBEDDING_API_KEY      = "embeddingApiKey"
     FORGE_BUILDER_DEPLOYMENT     = "builderDeployment"
     FORGE_JUDGE_DEPLOYMENT       = "judgeDeployment"
     FORGE_REVIEWER_DEPLOYMENT    = "reviewerDeployment"
@@ -95,4 +99,58 @@ function Load-ForgeConfig {
 
     $Global:ForgeConfig = $config
     return $config
+}
+
+function Test-ForgeConfig {
+    param (
+        [Parameter(Mandatory)][hashtable]$Config
+    )
+
+    $warnings = @()
+
+    # Numeric range checks
+    $positiveInts = @('maxLoops', 'maxAgentIterations', 'maxSearches', 'maxOpens', 'maxTotalTokens', 'maxIterationTokens')
+    foreach ($key in $positiveInts) {
+        if ($Config.ContainsKey($key) -and $Config[$key] -le 0) {
+            $warnings += "$key must be greater than 0 (got $($Config[$key]))"
+        }
+    }
+    $positiveDoubles = @('maxCostGBP', 'promptCostPer1K', 'completionCostPer1K')
+    foreach ($key in $positiveDoubles) {
+        if ($Config.ContainsKey($key) -and $Config[$key] -le 0) {
+            $warnings += "$key must be greater than 0 (got $($Config[$key]))"
+        }
+    }
+
+    # Iteration tokens should not exceed total tokens
+    if ($Config.maxIterationTokens -gt $Config.maxTotalTokens) {
+        $warnings += "maxIterationTokens ($($Config.maxIterationTokens)) exceeds maxTotalTokens ($($Config.maxTotalTokens))"
+    }
+
+    # Memory backend validation
+    if ($Config.memoryBackend -and $Config.memoryBackend -notin @("local", "redis")) {
+        $warnings += "memoryBackend must be 'local' or 'redis' (got '$($Config.memoryBackend)')"
+    }
+    if ($Config.memoryBackend -eq "redis" -and [string]::IsNullOrWhiteSpace($Config.redisConnectionString)) {
+        $warnings += "memoryBackend is 'redis' but redisConnectionString is empty — will fall back to local"
+    }
+
+    # Endpoint URL format
+    $endpoint = $env:AZURE_OPENAI_ENDPOINT
+    if ($endpoint -and -not $endpoint.StartsWith("https://")) {
+        $warnings += "AZURE_OPENAI_ENDPOINT should start with https:// (got '$endpoint')"
+    }
+    if ($Config.embeddingEndpoint -and -not $Config.embeddingEndpoint.StartsWith("https://")) {
+        $warnings += "embeddingEndpoint should start with https:// (got '$($Config.embeddingEndpoint)')"
+    }
+
+    # Deployment presence checks
+    if (-not $env:BUILDER_DEPLOYMENT -and -not $Config.builderDeployment) {
+        $warnings += "No builder deployment configured (set BUILDER_DEPLOYMENT env var or builderDeployment in config)"
+    }
+    if (-not $env:JUDGE_DEPLOYMENT -and -not $Config.judgeDeployment) {
+        $warnings += "No judge deployment configured (set JUDGE_DEPLOYMENT env var or judgeDeployment in config)"
+    }
+
+    return $warnings
 }

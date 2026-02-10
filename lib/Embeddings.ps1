@@ -18,15 +18,30 @@ function Get-Embedding {
         }
     }
 
-    $uri = "$($env:AZURE_OPENAI_ENDPOINT)/openai/deployments/$Model/embeddings?api-version=$($env:AZURE_OPENAI_API_VERSION)"
+    # Use separate embedding endpoint/key if configured, else fall back to main Azure OpenAI
+    $embeddingEndpoint = if ($Global:ForgeConfig -and $Global:ForgeConfig.ContainsKey('embeddingEndpoint') -and $Global:ForgeConfig.embeddingEndpoint) {
+        $Global:ForgeConfig.embeddingEndpoint
+    } else {
+        $env:AZURE_OPENAI_ENDPOINT
+    }
+    $embeddingApiKey = if ($Global:ForgeConfig -and $Global:ForgeConfig.ContainsKey('embeddingApiKey') -and $Global:ForgeConfig.embeddingApiKey) {
+        $Global:ForgeConfig.embeddingApiKey
+    } else {
+        $env:AZURE_OPENAI_API_KEY
+    }
+
+    $uri = "$embeddingEndpoint/openai/deployments/$Model/embeddings?api-version=$($env:AZURE_OPENAI_API_VERSION)"
 
     $body = @{
         input = $Text
     } | ConvertTo-Json -Depth 4
 
-    $headers = @{
-        "Content-Type"  = "application/json"
-        "Authorization" = "Bearer $($env:AZURE_OPENAI_API_KEY)"
+    # Auth header: JWT tokens (contain dots) use Bearer, API keys use api-key header
+    $headers = @{ "Content-Type" = "application/json" }
+    if ($embeddingApiKey -match '\.[A-Za-z0-9_-]+\.') {
+        $headers["Authorization"] = "Bearer $embeddingApiKey"
+    } else {
+        $headers["api-key"] = $embeddingApiKey
     }
 
     $maxRetries = 3

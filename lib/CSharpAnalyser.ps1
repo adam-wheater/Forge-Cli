@@ -1,4 +1,127 @@
+# CSharpAnalyser.ps1 — C# code analysis with Roslyn AST backend and regex fallback
+#
+# Architecture: Each public function tries the Roslyn C# tool (tools/RoslynAnalyser/)
+# first. If the tool isn't built or fails, falls back to the regex implementation.
+
+# ── Roslyn Bridge ──
+
+function Invoke-RoslynTool {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Command,
+        [Parameter(Mandatory)][string[]]$ToolArgs
+    )
+
+    $toolDir = Join-Path $PSScriptRoot ".." "tools" "RoslynAnalyser"
+
+    # Check for pre-built binary
+    $exePath = Join-Path $toolDir "bin" "Release" "net8.0" "RoslynAnalyser"
+    if ($IsWindows -or ($env:OS -and $env:OS -match 'Windows')) {
+        $exePath += ".exe"
+    }
+    # Also check Debug build
+    $exePathDebug = Join-Path $toolDir "bin" "Debug" "net8.0" "RoslynAnalyser"
+    if ($IsWindows -or ($env:OS -and $env:OS -match 'Windows')) {
+        $exePathDebug += ".exe"
+    }
+
+    $useExe = $false
+    $actualExe = ""
+    if (Test-Path $exePath) {
+        $useExe = $true; $actualExe = $exePath
+    } elseif (Test-Path $exePathDebug) {
+        $useExe = $true; $actualExe = $exePathDebug
+    }
+
+    $useDotnet = (-not $useExe) -and (Get-Command dotnet -ErrorAction SilentlyContinue) -and (Test-Path (Join-Path $toolDir "RoslynAnalyser.csproj"))
+
+    if (-not $useExe -and -not $useDotnet) {
+        return $null
+    }
+
+    try {
+        $allArgs = @($Command) + $ToolArgs
+        if ($useExe) {
+            $output = & $actualExe @allArgs 2>$null
+        } else {
+            $output = dotnet run --project $toolDir -- @allArgs 2>$null
+        }
+
+        if ($LASTEXITCODE -ne 0 -or -not $output) {
+            return $null
+        }
+
+        $json = $output -join "`n" | ConvertFrom-Json
+        return ConvertTo-Hashtable $json
+    } catch {
+        return $null
+    }
+}
+
+function ConvertTo-Hashtable {
+    param($Object)
+
+    if ($null -eq $Object) { return $null }
+
+    if ($Object -is [System.Management.Automation.PSCustomObject]) {
+        $ht = @{}
+        foreach ($prop in $Object.PSObject.Properties) {
+            $ht[$prop.Name] = ConvertTo-Hashtable $prop.Value
+        }
+        return $ht
+    }
+    elseif ($Object -is [System.Collections.IEnumerable] -and $Object -isnot [string]) {
+        return @($Object | ForEach-Object { ConvertTo-Hashtable $_ })
+    }
+    else {
+        return $Object
+    }
+}
+
+# ── Public API (Roslyn-first, regex fallback) ──
+
 function Get-CSharpSymbols {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Path)
+
+    $result = Invoke-RoslynTool -Command "symbols" -ToolArgs @($Path)
+    if ($result) { return $result }
+    return Get-CSharpSymbolsRegex -Path $Path
+}
+
+function Get-CSharpInterface {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$InterfaceName,
+        [Parameter(Mandatory)][string]$RepoRoot
+    )
+
+    $result = Invoke-RoslynTool -Command "interface" -ToolArgs @($InterfaceName, $RepoRoot)
+    if ($result -and $result.Name) { return $result }
+    return Get-CSharpInterfaceRegex -InterfaceName $InterfaceName -RepoRoot $RepoRoot
+}
+
+function Get-NuGetPackages {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$ProjectPath)
+
+    $result = Invoke-RoslynTool -Command "nuget" -ToolArgs @($ProjectPath)
+    if ($result) { return $result }
+    return Get-NuGetPackagesRegex -ProjectPath $ProjectPath
+}
+
+function Get-DIRegistrations {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$RepoRoot)
+
+    $result = Invoke-RoslynTool -Command "di" -ToolArgs @($RepoRoot)
+    if ($result) { return $result }
+    return Get-DIRegistrationsRegex -RepoRoot $RepoRoot
+}
+
+# ── Regex Fallback Implementations ──
+
+function Get-CSharpSymbolsRegex {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Path
@@ -80,7 +203,6 @@ function Get-CSharpSymbols {
                     break
                 }
             }
-            # Fallback: search for constructor signature pattern
             if ($ctorLineNum -eq 0) {
                 for ($i = 0; $i -lt $lines.Count; $i++) {
                     if ($lines[$i] -match "$className\s*\(") {
@@ -109,16 +231,14 @@ function Get-CSharpSymbols {
             }
         }
 
-        # Extract methods (exclude constructors by checking return type differs from class name)
+        # Extract methods
         $methodPattern = '(public|private|protected|internal)\s+(static\s+)?(async\s+)?([\w<>\[\],\s\?]+)\s+(\w+)\s*\(([^)]*)\)'
         $methodMatches = [regex]::Matches($content, $methodPattern)
         foreach ($mm in $methodMatches) {
             $methodName = $mm.Groups[5].Value
             $returnType = $mm.Groups[4].Value.Trim()
 
-            # Skip if this is actually a constructor (return type matches class name)
             if ($methodName -eq $className) { continue }
-            # Skip if the return type is a class keyword match
             if ($returnType -match '\bclass\b') { continue }
 
             $isMethodStatic = [bool]$mm.Groups[2].Value
@@ -162,9 +282,7 @@ function Get-CSharpSymbols {
             $propName = $pm.Groups[4].Value
             $propType = $pm.Groups[3].Value.Trim()
 
-            # Skip if this looks like a class, method, or namespace
             if ($propType -match '\b(class|namespace|void|return)\b') { continue }
-            # Skip if name matches a known method name (getters look like props in regex)
             $isMethod = $false
             foreach ($m in $classInfo.Methods) {
                 if ($m.Name -eq $propName) { $isMethod = $true; break }
@@ -194,7 +312,7 @@ function Get-CSharpSymbols {
     return $result
 }
 
-function Get-CSharpInterface {
+function Get-CSharpInterfaceRegex {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$InterfaceName,
@@ -203,13 +321,10 @@ function Get-CSharpInterface {
 
     if (-not (Test-Path $RepoRoot)) { return $null }
 
-    # Find .cs files using git ls-files or fallback to Get-ChildItem
     $csFiles = @()
     try {
         $csFiles = @(git -C $RepoRoot ls-files '*.cs' 2>$null | ForEach-Object { Join-Path $RepoRoot $_ })
-    } catch {
-        # Fallback if not a git repo
-    }
+    } catch {}
     if ($csFiles.Count -eq 0) {
         $csFiles = @(Get-ChildItem $RepoRoot -Filter '*.cs' -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
     }
@@ -219,14 +334,11 @@ function Get-CSharpInterface {
         $content = Get-Content $file -Raw -ErrorAction SilentlyContinue
         if (-not $content) { continue }
 
-        # Check if this file contains the interface definition
         $interfacePattern = '(public|internal)?\s*interface\s+' + [regex]::Escape($InterfaceName) + '(?:\s*<[^>]+>)?\s*(?::\s*[^{]+)?\s*\{'
         if ($content -notmatch $interfacePattern) { continue }
 
-        # Found the interface — extract method signatures
         $methods = @()
 
-        # Get the interface body by finding matching braces
         $startIdx = $content.IndexOf($matches[0])
         $braceStart = $content.IndexOf('{', $startIdx)
         if ($braceStart -lt 0) { continue }
@@ -241,7 +353,6 @@ function Get-CSharpInterface {
 
         $body = $content.Substring($braceStart + 1, $pos - $braceStart - 2)
 
-        # Extract method signatures from the interface body
         $methodPattern = '([\w<>\[\],\?\s]+)\s+(\w+)\s*\(([^)]*)\)\s*;'
         $methodMatches = [regex]::Matches($body, $methodPattern)
         foreach ($mm in $methodMatches) {
@@ -267,7 +378,6 @@ function Get-CSharpInterface {
             }
         }
 
-        # Build relative path from repo root
         $relativePath = $file
         if ($file.StartsWith($RepoRoot)) {
             $relativePath = $file.Substring($RepoRoot.Length).TrimStart([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
@@ -283,7 +393,7 @@ function Get-CSharpInterface {
     return $null
 }
 
-function Get-NuGetPackages {
+function Get-NuGetPackagesRegex {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$ProjectPath
@@ -302,22 +412,16 @@ function Get-NuGetPackages {
     $content = Get-Content $ProjectPath -Raw -ErrorAction SilentlyContinue
     if (-not $content) { return $result }
 
-    # Extract PackageReference elements
     $pkgPattern = '<PackageReference\s+Include="([^"]+)"\s+Version="([^"]*)"'
     $pkgMatches = [regex]::Matches($content, $pkgPattern)
     foreach ($pm in $pkgMatches) {
-        $result.Packages += @{
-            Name    = $pm.Groups[1].Value
-            Version = $pm.Groups[2].Value
-        }
+        $result.Packages += @{ Name = $pm.Groups[1].Value; Version = $pm.Groups[2].Value }
     }
 
-    # Also handle PackageReference with child Version element
     $pkgAltPattern = '<PackageReference\s+Include="([^"]+)"\s*/?>'
     $pkgAltMatches = [regex]::Matches($content, $pkgAltPattern)
     foreach ($pm in $pkgAltMatches) {
         $pkgName = $pm.Groups[1].Value
-        # Skip if already captured with inline version
         $alreadyCaptured = $false
         foreach ($existing in $result.Packages) {
             if ($existing.Name -eq $pkgName) { $alreadyCaptured = $true; break }
@@ -327,61 +431,39 @@ function Get-NuGetPackages {
         }
     }
 
-    # Detect test framework
     $packageNames = @($result.Packages | ForEach-Object { $_.Name.ToLower() })
-    if ($packageNames -match 'xunit') {
-        $result.TestFramework = "xunit"
-    } elseif ($packageNames -match 'nunit') {
-        $result.TestFramework = "nunit"
-    } elseif ($packageNames -match 'mstest\.testframework') {
-        $result.TestFramework = "mstest"
-    }
+    if ($packageNames -match 'xunit') { $result.TestFramework = "xunit" }
+    elseif ($packageNames -match 'nunit') { $result.TestFramework = "nunit" }
+    elseif ($packageNames -match 'mstest\.testframework') { $result.TestFramework = "mstest" }
 
-    # Detect mock library
-    if ($packageNames -match '^moq$') {
-        $result.MockLibrary = "moq"
-    } elseif ($packageNames -match 'nsubstitute') {
-        $result.MockLibrary = "nsubstitute"
-    } elseif ($packageNames -match 'fakeiteasy') {
-        $result.MockLibrary = "fakeiteasy"
-    }
+    if ($packageNames -match '^moq$') { $result.MockLibrary = "moq" }
+    elseif ($packageNames -match 'nsubstitute') { $result.MockLibrary = "nsubstitute" }
+    elseif ($packageNames -match 'fakeiteasy') { $result.MockLibrary = "fakeiteasy" }
 
-    # Detect assertion library
-    if ($packageNames -match 'fluentassertions') {
-        $result.AssertionLibrary = "fluentassertions"
-    } elseif ($packageNames -match 'shouldly') {
-        $result.AssertionLibrary = "shouldly"
-    }
+    if ($packageNames -match 'fluentassertions') { $result.AssertionLibrary = "fluentassertions" }
+    elseif ($packageNames -match 'shouldly') { $result.AssertionLibrary = "shouldly" }
 
-    # Detect coverage tools
-    if ($packageNames -match 'coverlet\.collector') {
-        $result.CoverageTools += "coverlet"
-    }
+    if ($packageNames -match 'coverlet\.collector') { $result.CoverageTools += "coverlet" }
 
     return $result
 }
 
-function Get-DIRegistrations {
+function Get-DIRegistrationsRegex {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$RepoRoot
     )
 
-    $result = @{
-        Registrations = @()
-    }
+    $result = @{ Registrations = @() }
 
     if (-not (Test-Path $RepoRoot)) { return $result }
 
-    # Search for Startup.cs or Program.cs
     $targetFiles = @()
     $candidates = @("Startup.cs", "Program.cs")
     foreach ($name in $candidates) {
         $found = Get-ChildItem $RepoRoot -Filter $name -Recurse -Depth 5 -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -notmatch '[\\/](obj|bin|node_modules|\.git)[\\/]' }
-        if ($found) {
-            $targetFiles += @($found | ForEach-Object { $_.FullName })
-        }
+        if ($found) { $targetFiles += @($found | ForEach-Object { $_.FullName }) }
     }
 
     if ($targetFiles.Count -eq 0) { return $result }
@@ -394,51 +476,27 @@ function Get-DIRegistrations {
             $line = $content[$i]
             $lineNum = $i + 1
 
-            # Match: services.AddScoped<IFoo, Foo>() or builder.Services.AddScoped<IFoo, Foo>()
             $genericPattern = '(?:services|builder\.Services)\.Add(Scoped|Transient|Singleton)<([^,>]+),\s*([^>]+)>\s*\('
             if ($line -match $genericPattern) {
-                $result.Registrations += @{
-                    Interface      = $matches[2].Trim()
-                    Implementation = $matches[3].Trim()
-                    Lifetime       = $matches[1]
-                    Line           = $lineNum
-                }
+                $result.Registrations += @{ Interface = $matches[2].Trim(); Implementation = $matches[3].Trim(); Lifetime = $matches[1]; Line = $lineNum }
                 continue
             }
 
-            # Match: services.AddScoped(typeof(IGeneric<>), typeof(Generic<>))
             $typeofPattern = '(?:services|builder\.Services)\.Add(Scoped|Transient|Singleton)\s*\(\s*typeof\(([^)]+)\)\s*,\s*typeof\(([^)]+)\)\s*\)'
             if ($line -match $typeofPattern) {
-                $result.Registrations += @{
-                    Interface      = $matches[2].Trim()
-                    Implementation = $matches[3].Trim()
-                    Lifetime       = $matches[1]
-                    Line           = $lineNum
-                }
+                $result.Registrations += @{ Interface = $matches[2].Trim(); Implementation = $matches[3].Trim(); Lifetime = $matches[1]; Line = $lineNum }
                 continue
             }
 
-            # Match: services.AddDbContext<AppDbContext>()
             $dbContextPattern = '(?:services|builder\.Services)\.AddDbContext<([^>]+)>\s*\('
             if ($line -match $dbContextPattern) {
-                $result.Registrations += @{
-                    Interface      = $matches[1].Trim()
-                    Implementation = $matches[1].Trim()
-                    Lifetime       = "Scoped"
-                    Line           = $lineNum
-                }
+                $result.Registrations += @{ Interface = $matches[1].Trim(); Implementation = $matches[1].Trim(); Lifetime = "Scoped"; Line = $lineNum }
                 continue
             }
 
-            # Match: services.AddHttpClient<IApiClient, ApiClient>()
             $httpClientPattern = '(?:services|builder\.Services)\.AddHttpClient<([^,>]+),\s*([^>]+)>\s*\('
             if ($line -match $httpClientPattern) {
-                $result.Registrations += @{
-                    Interface      = $matches[1].Trim()
-                    Implementation = $matches[2].Trim()
-                    Lifetime       = "Transient"
-                    Line           = $lineNum
-                }
+                $result.Registrations += @{ Interface = $matches[1].Trim(); Implementation = $matches[2].Trim(); Lifetime = "Transient"; Line = $lineNum }
                 continue
             }
         }

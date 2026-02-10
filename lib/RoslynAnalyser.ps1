@@ -1,11 +1,50 @@
-# RoslynAnalyser.ps1 — Enhanced regex-based code analysis (I02)
+# RoslynAnalyser.ps1 — Enhanced code analysis with Roslyn AST backend (I02)
 #
-# NOTE: This is a regex approximation of Roslyn-powered analysis.
-# TODO: Replace with actual Roslyn via tools/RoslynAnalyser/ C# project
-# that uses Microsoft.CodeAnalysis for accurate AST-based analysis.
-# The C# helper would output JSON consumed by these PowerShell functions.
+# Architecture: Each public function tries the Roslyn C# tool (tools/RoslynAnalyser/)
+# first via Invoke-RoslynTool from CSharpAnalyser.ps1. If the tool isn't built or
+# fails, falls back to the regex implementation (*Regex suffix variants below).
+
+# Dot-source CSharpAnalyser for Invoke-RoslynTool and ConvertTo-Hashtable
+. "$PSScriptRoot/CSharpAnalyser.ps1"
+
+# ── Public API (Roslyn-first, regex fallback) ──
 
 function Get-MethodAnalysis {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    $result = Invoke-RoslynTool -Command "methods" -ToolArgs @($Path)
+    if ($result) { return $result }
+    return Get-MethodAnalysisRegex -Path $Path
+}
+
+function Get-ClassComplexity {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    $result = Invoke-RoslynTool -Command "complexity" -ToolArgs @($Path)
+    if ($result) { return $result }
+    return Get-ClassComplexityRegex -Path $Path
+}
+
+function Get-ThrowStatements {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    $result = Invoke-RoslynTool -Command "throws" -ToolArgs @($Path)
+    if ($result) { return $result }
+    return Get-ThrowStatementsRegex -Path $Path
+}
+
+# ── Regex Fallback Implementations ──
+
+function Get-MethodAnalysisRegex {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Path
@@ -147,7 +186,7 @@ function Get-MethodAnalysis {
     return $result
 }
 
-function Get-ClassComplexity {
+function Get-ClassComplexityRegex {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Path
@@ -192,8 +231,8 @@ function Get-ClassComplexity {
             $dependencyCount = ($ctorMatch.Groups[1].Value -split ',').Count
         }
 
-        # Get method-level complexities
-        $methods = Get-MethodAnalysis -Path $Path
+        # Get method-level complexities (use regex variant directly to avoid recursion)
+        $methods = Get-MethodAnalysisRegex -Path $Path
         $classMethods = @()
         $totalComplexity = 0
 
@@ -224,7 +263,7 @@ function Get-ClassComplexity {
     return $result
 }
 
-function Get-ThrowStatements {
+function Get-ThrowStatementsRegex {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Path

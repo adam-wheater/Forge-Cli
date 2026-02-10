@@ -11,6 +11,8 @@
   "memoryBackend": "local",
   "redisConnectionString": "",
   "embeddingModel": "text-embedding-3-small",
+  "embeddingEndpoint": "",
+  "embeddingApiKey": "",
   "builderDeployment": "",
   "judgeDeployment": "",
   "reviewerDeployment": "",

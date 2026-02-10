@@ -1,9 +1,112 @@
 # IntegrationTestGen.ps1 — Integration test generation for controllers/endpoints (I10)
 # Detects [ApiController] classes, extracts HTTP endpoints, and generates
-# WebApplicationFactory-based integration test scaffolds.
+# WebApplicationFactory-based integration test scaffolds with smart mock setup
+# and populated test data.
 
-# Dot-source CSharpAnalyser for Get-CSharpSymbols
+# Dot-source dependencies
 . "$PSScriptRoot/CSharpAnalyser.ps1"
+. "$PSScriptRoot/MockScaffolder.ps1"
+. "$PSScriptRoot/TestDataBuilder.ps1"
+
+function Get-DtoProperties {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$TypeName,
+        [Parameter(Mandatory)][string]$RepoRoot
+    )
+
+    if (-not (Test-Path $RepoRoot -PathType Container)) { return @() }
+
+    # Strip generic wrappers and nullable suffix to get the core type name
+    $coreName = $TypeName -replace '\?$', ''
+    $coreName = $coreName -replace '^.*<(.+)>$', '$1'
+    $coreName = $coreName -replace '\[\]$', ''
+
+    # Fast search: find files likely containing this class via git grep or filename heuristic
+    $candidateFiles = @()
+    try {
+        $gitMatches = @(git -C $RepoRoot grep -l "class\s\+$coreName" -- '*.cs' 2>$null |
+            ForEach-Object { Join-Path $RepoRoot $_ })
+        $candidateFiles = $gitMatches
+    } catch { }
+
+    # Fallback: search by filename matching the type name
+    if ($candidateFiles.Count -eq 0) {
+        $candidateFiles = @(Get-ChildItem $RepoRoot -Filter "$coreName.cs" -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '[\\/](obj|bin|\.git|node_modules)[\\/]' } |
+            ForEach-Object { $_.FullName })
+    }
+
+    foreach ($file in $candidateFiles) {
+        if (-not (Test-Path $file)) { continue }
+        $symbols = Get-CSharpSymbols -Path $file
+        if (-not $symbols -or -not $symbols.Classes) { continue }
+
+        foreach ($class in $symbols.Classes) {
+            if ($class.Name -eq $coreName) {
+                return @($class.Properties | Where-Object { $_.Visibility -eq 'public' })
+            }
+        }
+    }
+
+    return @()
+}
+
+function Get-NullMockSetupLine {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$VarName,
+        [Parameter(Mandatory)][hashtable]$Method
+    )
+
+    $methodName = $Method.Name
+    $returnType = $Method.ReturnType
+    $params = $Method.Parameters
+
+    # Build parameter matchers
+    $paramMatchers = @()
+    foreach ($p in $params) {
+        $paramMatchers += "It.IsAny<$($p.Type)>()"
+    }
+    $matchersJoined = $paramMatchers -join ", "
+
+    $isAsync = $returnType -match '^Task' -or $returnType -match '^ValueTask'
+    $innerType = $returnType
+
+    if ($returnType -match '^Task<(.+)>$') {
+        $innerType = $matches[1]
+    } elseif ($returnType -match '^ValueTask<(.+)>$') {
+        $innerType = $matches[1]
+    }
+
+    $setup = "$VarName.Setup(x => x.$methodName($matchersJoined))"
+
+    # Return null for reference types, empty collections for collection types
+    if ($returnType -eq 'Task' -or $returnType -eq 'ValueTask' -or $returnType -eq 'void') {
+        return $null  # Not relevant for 404 tests
+    }
+
+    if ($innerType -match '^IEnumerable<(.+)>$' -or $innerType -match '^IList<(.+)>$' -or
+        $innerType -match '^List<(.+)>$' -or $innerType -match '^ICollection<(.+)>$') {
+        $elementType = $matches[1]
+        if ($isAsync -and $returnType -match 'Task<') {
+            $setup += ".ReturnsAsync(new List<$elementType>());"
+        } else {
+            $setup += ".Returns(new List<$elementType>());"
+        }
+    } else {
+        # Reference type — return null
+        if ($isAsync -and $returnType -match 'Task<') {
+            $setup += ".ReturnsAsync(($innerType)null);"
+        } elseif ($isAsync -and $returnType -match 'ValueTask<') {
+            $setup += ".Returns(new ValueTask<$innerType>(($innerType)null));"
+        } else {
+            $setup += ".Returns(($innerType)null);"
+        }
+    }
+
+    return $setup
+}
 
 function Get-ApiControllers {
     [CmdletBinding()]
@@ -270,6 +373,15 @@ function Get-IntegrationTestScaffold {
         }
     }
 
+    # Pre-resolve interface definitions for mock dependencies (used by multiple test methods)
+    $interfaceCache = @{}
+    foreach ($dep in $mockDeps) {
+        $interfaceDef = Get-CSharpInterface -InterfaceName $dep.Type -RepoRoot $RepoRoot
+        if ($interfaceDef) {
+            $interfaceCache[$dep.Type] = $interfaceDef
+        }
+    }
+
     # Build the test scaffold
     $sb = [System.Text.StringBuilder]::new()
 
@@ -338,10 +450,20 @@ function Get-IntegrationTestScaffold {
         [void]$sb.AppendLine("        {")
         [void]$sb.AppendLine("            // Arrange")
 
-        # Generate mock setups for this endpoint
+        # Smart mock setups: look up interface methods and generate .Setup() calls
         foreach ($dep in $mockDeps) {
             $fieldName = "_mock" + ($dep.Name.TrimStart('_').Substring(0,1).ToUpper() + $dep.Name.TrimStart('_').Substring(1))
-            [void]$sb.AppendLine("            // TODO: Configure $fieldName setup for this test case")
+            $interfaceDef = $interfaceCache[$dep.Type]
+            if ($interfaceDef -and $interfaceDef.Methods) {
+                foreach ($method in $interfaceDef.Methods) {
+                    $setupLine = Get-MockSetupLine -VarName $fieldName -Method $method
+                    if ($setupLine) {
+                        [void]$sb.AppendLine("            $setupLine")
+                    }
+                }
+            } else {
+                [void]$sb.AppendLine("            // Configure $fieldName setup for $($dep.Type)")
+            }
         }
 
         [void]$sb.AppendLine("")
@@ -354,7 +476,21 @@ function Get-IntegrationTestScaffold {
             "POST" {
                 $bodyParam = $endpoint.Parameters | Where-Object { $_.Binding -eq 'Body' } | Select-Object -First 1
                 if ($bodyParam) {
-                    [void]$sb.AppendLine("            var request = new $($bodyParam.Type)(); // TODO: populate test data")
+                    # Smart DTO population: look up properties and generate object initializer
+                    $dtoProps = Get-DtoProperties -TypeName $bodyParam.Type -RepoRoot $RepoRoot
+                    if ($dtoProps -and $dtoProps.Count -gt 0) {
+                        [void]$sb.AppendLine("            var request = new $($bodyParam.Type)")
+                        [void]$sb.AppendLine("            {")
+                        for ($propIdx = 0; $propIdx -lt $dtoProps.Count; $propIdx++) {
+                            $prop = $dtoProps[$propIdx]
+                            $defaultVal = Get-BuilderDefaultValue -TypeName $prop.Type -PropName $prop.Name
+                            $comma = if ($propIdx -lt $dtoProps.Count - 1) { "," } else { "" }
+                            [void]$sb.AppendLine("                $($prop.Name) = $defaultVal$comma")
+                        }
+                        [void]$sb.AppendLine("            };")
+                    } else {
+                        [void]$sb.AppendLine("            var request = new $($bodyParam.Type)();")
+                    }
                     [void]$sb.AppendLine("            var response = await _client.PostAsJsonAsync(`"/$testRoute`", request);")
                 } else {
                     [void]$sb.AppendLine("            var response = await _client.PostAsJsonAsync(`"/$testRoute`", new { });")
@@ -363,7 +499,21 @@ function Get-IntegrationTestScaffold {
             "PUT" {
                 $bodyParam = $endpoint.Parameters | Where-Object { $_.Binding -eq 'Body' } | Select-Object -First 1
                 if ($bodyParam) {
-                    [void]$sb.AppendLine("            var request = new $($bodyParam.Type)(); // TODO: populate test data")
+                    # Smart DTO population: look up properties and generate object initializer
+                    $dtoProps = Get-DtoProperties -TypeName $bodyParam.Type -RepoRoot $RepoRoot
+                    if ($dtoProps -and $dtoProps.Count -gt 0) {
+                        [void]$sb.AppendLine("            var request = new $($bodyParam.Type)")
+                        [void]$sb.AppendLine("            {")
+                        for ($propIdx = 0; $propIdx -lt $dtoProps.Count; $propIdx++) {
+                            $prop = $dtoProps[$propIdx]
+                            $defaultVal = Get-BuilderDefaultValue -TypeName $prop.Type -PropName $prop.Name
+                            $comma = if ($propIdx -lt $dtoProps.Count - 1) { "," } else { "" }
+                            [void]$sb.AppendLine("                $($prop.Name) = $defaultVal$comma")
+                        }
+                        [void]$sb.AppendLine("            };")
+                    } else {
+                        [void]$sb.AppendLine("            var request = new $($bodyParam.Type)();")
+                    }
                     [void]$sb.AppendLine("            var response = await _client.PutAsJsonAsync(`"/$testRoute`", request);")
                 } else {
                     [void]$sb.AppendLine("            var response = await _client.PutAsJsonAsync(`"/$testRoute`", new { });")
@@ -390,7 +540,26 @@ function Get-IntegrationTestScaffold {
             [void]$sb.AppendLine("        public async Task $notFoundTestName()")
             [void]$sb.AppendLine("        {")
             [void]$sb.AppendLine("            // Arrange")
-            [void]$sb.AppendLine("            // TODO: Configure mocks to return null/empty for the requested resource")
+
+            # Smart 404 mock setup: configure mocks to return null/empty
+            $hasAnySetup = $false
+            foreach ($dep in $mockDeps) {
+                $fieldName = "_mock" + ($dep.Name.TrimStart('_').Substring(0,1).ToUpper() + $dep.Name.TrimStart('_').Substring(1))
+                $interfaceDef = $interfaceCache[$dep.Type]
+                if ($interfaceDef -and $interfaceDef.Methods) {
+                    foreach ($method in $interfaceDef.Methods) {
+                        $nullSetup = Get-NullMockSetupLine -VarName $fieldName -Method $method
+                        if ($nullSetup) {
+                            [void]$sb.AppendLine("            $nullSetup")
+                            $hasAnySetup = $true
+                        }
+                    }
+                }
+            }
+            if (-not $hasAnySetup) {
+                [void]$sb.AppendLine("            // Configure mocks to return null/empty for the requested resource")
+            }
+
             [void]$sb.AppendLine("")
             [void]$sb.AppendLine("            // Act")
 

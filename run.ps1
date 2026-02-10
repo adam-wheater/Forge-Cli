@@ -7,15 +7,23 @@ param (
     [switch]$InteractiveMode,     # K05: pause after judge, ask user approval
     [switch]$DryRun,              # K06: run pipeline without applying patches or committing
     [string]$ConfigPath = "",     # J01: path to forge.config.json
-    [switch]$ResumeSession,       # F04: placeholder for session resume
     [switch]$UseWorktrees,        # J08: git worktree isolation per builder hypothesis
     [switch]$CIMode               # J09: CI mode — structured JSON output, no prompts, exit codes
 )
 
 # Load configuration (J01)
 . "$PSScriptRoot/lib/ConfigLoader.ps1"
+if ($ConfigPath -and -not (Test-Path $ConfigPath)) {
+    throw "Config file not found: $ConfigPath"
+}
 $config = Load-ForgeConfig -ConfigPath $(if ($ConfigPath) { $ConfigPath } else { "$PSScriptRoot/forge.config.json" })
 $Global:ForgeConfig = $config
+
+# Validate configuration and surface warnings early
+$configWarnings = Test-ForgeConfig $config
+foreach ($w in $configWarnings) {
+    Write-Warning "Config: $w"
+}
 
 # Apply config defaults for parameters not explicitly provided
 if (-not $PSBoundParameters.ContainsKey('MaxLoops')) {
@@ -78,6 +86,12 @@ if ($LASTEXITCODE -ne 0) { throw "git checkout -b $Branch failed (exit code $LAS
 
 . "$PSScriptRoot/lib/Orchestrator.ps1"
 . "$PSScriptRoot/lib/RepoMemory.ps1"
+. "$PSScriptRoot/lib/RedisCache.ps1"
+
+# Initialize Redis if configured
+if ($config.redisConnectionString) {
+    Initialize-RedisCache -ConnectionString $config.redisConnectionString
+}
 
 # Apply config values to Orchestrator rate limits
 if ($config.maxSearches) { $script:MAX_SEARCHES = $config.maxSearches }
@@ -231,6 +245,7 @@ $toolsBase      = Get-Content "$PSScriptRoot/agents/tools.system.txt" -Raw
 # J05: Incremental patching — track which tests are passing across iterations
 $passingTests = @()
 $testsFixedTotal = 0
+$keepPatches = $false
 
 # J09: CI mode tracking
 $ciResult = @{
@@ -284,22 +299,17 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
         }
     }
 
-    # J05: Incremental patching — only reset if needed
-    # Instead of always resetting, check if we should keep accumulated patches
-    $shouldReset = $true
-    if ($passingTests.Count -gt 0) {
-        # We have previously-passing tests. Check if they still pass before resetting.
-        $shouldReset = $true  # Default to reset; will be overridden below if patch kept
-        Write-DebugLog "incremental-check" "Tracking $($passingTests.Count) previously-passing tests"
-    }
-
-    if ($shouldReset) {
+    # J05: Incremental patching — only reset if previous iteration didn't keep patches
+    if ($keepPatches) {
+        Write-DebugLog "incremental-keep" "Keeping accumulated patches ($($passingTests.Count) previously-passing tests)"
+    } else {
         # C110: Reset working tree to prevent failed patches from accumulating
         git checkout -- .
         if ($LASTEXITCODE -ne 0) {
             Write-DebugLog "git-reset-failed" "git checkout -- . failed (exit code $LASTEXITCODE)"
         }
     }
+    $keepPatches = $false  # Reset for this iteration; set true below if patch preserved
 
     # C114: Clean up stale patch files between iterations
     Remove-Item ai.patch -ErrorAction SilentlyContinue
@@ -422,8 +432,6 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
     } else {
         # J02: Parallel builder execution using Start-Job
         $patches = @()
-        $parallelSupported = $true
-
         # Try parallel execution with Start-Job
         try {
             $builderJobs = @()
@@ -728,7 +736,7 @@ for ($i = 1; $i -le $MaxLoops; $i++) {
                 # Keep accumulated patches and update passing test list
                 Write-ForgeStatus "Patch did not break existing tests — keeping accumulated changes" "info"
                 $passingTests = @($passingTests + $currentPassingTests | Select-Object -Unique)
-                $shouldReset = $false
+                $keepPatches = $true
             }
         }
 

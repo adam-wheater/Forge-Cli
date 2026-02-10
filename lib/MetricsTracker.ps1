@@ -21,8 +21,8 @@ function Add-MetricEvent {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
-        [ValidateSet("iteration_start", "iteration_end", "agent_call", "patch_generated", "test_run", "build_result", "cost_incurred")]
-        [string]$Type,
+        [ValidateSet("iteration_start", "iteration_end", "agent_call", "patch_generated", "test_run", "build_result", "cost_incurred", "builder_start", "builder_end")]
+        [string]$Event,
         [Parameter(Mandatory)][hashtable]$Data
     )
 
@@ -33,7 +33,7 @@ function Add-MetricEvent {
 
     $event = @{
         Timestamp = (Get-Date).ToUniversalTime().ToString("o")
-        Type      = $Type
+        Type      = $Event
         Data      = $Data
     }
 

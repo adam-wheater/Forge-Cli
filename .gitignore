@@ -1,6 +1,9 @@
 # Runtime state (AI loop metrics, PIDs, logs)
 vibe/.ai-metrics/
 
+# Secrets
+.env
+
 # OS
 .DS_Store
 Thumbs.db
