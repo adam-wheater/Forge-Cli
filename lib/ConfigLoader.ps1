@@ -23,6 +23,10 @@ $script:ConfigDefaults = @{
     interactiveMode       = $false
     dryRun                = $false
     useResponsesApi       = $false
+    orchestratorDeployment = ""
+    workerDeployment       = ""
+    maxTaskSteps           = 20
+    contextTokenBudget     = 8000
 }
 
 # Env var name → config key mapping
@@ -48,6 +52,10 @@ $script:EnvVarMap = @{
     FORGE_INTERACTIVE_MODE       = "interactiveMode"
     FORGE_DRY_RUN                = "dryRun"
     FORGE_USE_RESPONSES_API      = "useResponsesApi"
+    FORGE_ORCHESTRATOR_DEPLOYMENT = "orchestratorDeployment"
+    FORGE_WORKER_DEPLOYMENT       = "workerDeployment"
+    FORGE_MAX_TASK_STEPS          = "maxTaskSteps"
+    FORGE_CONTEXT_TOKEN_BUDGET    = "contextTokenBudget"
 }
 
 function Load-ForgeConfig {
