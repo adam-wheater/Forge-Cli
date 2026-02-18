@@ -109,7 +109,7 @@ Push-Location $RepoPath
 try {
     # Initialize repo memory
     Write-Host "Initializing repo memory..." -ForegroundColor Gray
-    Initialize-RepoMemory -RepoRoot $RepoPath
+    Initialize-RepoMemory -ProjectDir $RepoPath
 
     # Initialize metrics and tracing
     if (Get-Command Initialize-Metrics -ErrorAction SilentlyContinue) {
@@ -126,7 +126,8 @@ try {
             if ($Global:EmbeddingCache.Count -eq 0) {
                 Build-EmbeddingIndex -RepoRoot $RepoPath
             } else {
-                Update-EmbeddingIndex -RepoRoot $RepoPath
+                $cachePath = Join-Path $RepoPath ".forge" "embedding-cache.json"
+                Update-EmbeddingIndex -RepoRoot $RepoPath -CachePath $cachePath
             }
             Write-Host "  Indexed $($Global:EmbeddingCache.Count) chunks" -ForegroundColor Gray
         } catch {

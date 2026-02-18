@@ -27,7 +27,7 @@ Describe 'Invoke-SemanticRetrieval' {
     It 'Formats results with file headers and scores' {
         Mock -CommandName Invoke-SemanticSearch -MockWith {
             @(
-                [PSCustomObject]@{ File = "src/Foo.cs"; Content = "class Foo { }"; Similarity = 0.95 }
+                [PSCustomObject]@{ File = "src/Foo.cs"; Snippet = "class Foo { }"; Similarity = 0.95 }
             )
         }
         $result = Invoke-SemanticRetrieval -Query "find Foo"

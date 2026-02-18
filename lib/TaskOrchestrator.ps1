@@ -21,7 +21,7 @@ function New-ForgeTask {
     #>
     param (
         [Parameter(Mandatory)][string]$Id,
-        [Parameter(Mandatory)][ValidateSet("investigate", "retrieve", "modify", "test", "review", "analyze")][string]$Type,
+        [Parameter(Mandatory)][ValidateSet("investigate", "modify", "test", "review", "analyze")][string]$Type,
         [Parameter(Mandatory)][string]$Instruction,
         [string[]]$Dependencies = @(),
         [string]$WorkerRole = "builder",
@@ -220,7 +220,7 @@ function Invoke-TaskDecomposition {
         $response = Invoke-AzureAgent `
             -Deployment $deployment `
             -SystemPrompt $systemPrompt `
-            -UserMessage $userMessage
+            -UserPrompt $userMessage
 
         return Parse-TaskPlan -Response $response
     } catch {
@@ -472,7 +472,7 @@ If no new tasks are needed, return an empty array: []
         $response = Invoke-AzureAgent `
             -Deployment $deployment `
             -SystemPrompt $systemPrompt `
-            -UserMessage $replanMessage
+            -UserPrompt $replanMessage
 
         $newTasks = Parse-TaskPlan -Response $response
         if ($newTasks -and $newTasks.Count -gt 0) {

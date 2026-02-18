@@ -85,9 +85,9 @@ function Invoke-SemanticRetrieval {
 
         $lines = @("RELEVANT_CODE:")
         foreach ($result in $results) {
-            $file = if ($result.File) { $result.File } elseif ($result.PSObject.Properties['file']) { $result.file } else { "unknown" }
-            $content = if ($result.Content) { $result.Content } elseif ($result.PSObject.Properties['content']) { $result.content } else { "" }
-            $score = if ($result.Similarity) { $result.Similarity } elseif ($result.PSObject.Properties['similarity']) { $result.similarity } else { 0 }
+            $file = if ($result.File) { $result.File } else { "unknown" }
+            $content = if ($result.Snippet) { $result.Snippet } else { "" }
+            $score = if ($result.Similarity) { $result.Similarity } else { 0 }
 
             $lines += "--- $file (score: $([math]::Round($score, 3))) ---"
             $lines += $content
