@@ -454,9 +454,9 @@ function Get-DIRegistrationsRegex {
         [Parameter(Mandatory)][string]$RepoRoot
     )
 
-    $result = @{ Registrations = @() }
+    $registrations = [System.Collections.Generic.List[Object]]::new()
 
-    if (-not (Test-Path $RepoRoot)) { return $result }
+    if (-not (Test-Path $RepoRoot)) { return @{ Registrations = $registrations.ToArray() } }
 
     $targetFiles = @()
     $candidates = @("Startup.cs", "Program.cs")
@@ -466,7 +466,7 @@ function Get-DIRegistrationsRegex {
         if ($found) { $targetFiles += @($found | ForEach-Object { $_.FullName }) }
     }
 
-    if ($targetFiles.Count -eq 0) { return $result }
+    if ($targetFiles.Count -eq 0) { return @{ Registrations = $registrations.ToArray() } }
 
     foreach ($file in $targetFiles) {
         $content = Get-Content $file -ErrorAction SilentlyContinue
@@ -478,29 +478,29 @@ function Get-DIRegistrationsRegex {
 
             $genericPattern = '(?:services|builder\.Services)\.Add(Scoped|Transient|Singleton)<([^,>]+),\s*([^>]+)>\s*\('
             if ($line -match $genericPattern) {
-                $result.Registrations += @{ Interface = $matches[2].Trim(); Implementation = $matches[3].Trim(); Lifetime = $matches[1]; Line = $lineNum }
+                $registrations.Add(@{ Interface = $matches[2].Trim(); Implementation = $matches[3].Trim(); Lifetime = $matches[1]; Line = $lineNum })
                 continue
             }
 
             $typeofPattern = '(?:services|builder\.Services)\.Add(Scoped|Transient|Singleton)\s*\(\s*typeof\(([^)]+)\)\s*,\s*typeof\(([^)]+)\)\s*\)'
             if ($line -match $typeofPattern) {
-                $result.Registrations += @{ Interface = $matches[2].Trim(); Implementation = $matches[3].Trim(); Lifetime = $matches[1]; Line = $lineNum }
+                $registrations.Add(@{ Interface = $matches[2].Trim(); Implementation = $matches[3].Trim(); Lifetime = $matches[1]; Line = $lineNum })
                 continue
             }
 
             $dbContextPattern = '(?:services|builder\.Services)\.AddDbContext<([^>]+)>\s*\('
             if ($line -match $dbContextPattern) {
-                $result.Registrations += @{ Interface = $matches[1].Trim(); Implementation = $matches[1].Trim(); Lifetime = "Scoped"; Line = $lineNum }
+                $registrations.Add(@{ Interface = $matches[1].Trim(); Implementation = $matches[1].Trim(); Lifetime = "Scoped"; Line = $lineNum })
                 continue
             }
 
             $httpClientPattern = '(?:services|builder\.Services)\.AddHttpClient<([^,>]+),\s*([^>]+)>\s*\('
             if ($line -match $httpClientPattern) {
-                $result.Registrations += @{ Interface = $matches[1].Trim(); Implementation = $matches[2].Trim(); Lifetime = "Transient"; Line = $lineNum }
+                $registrations.Add(@{ Interface = $matches[1].Trim(); Implementation = $matches[2].Trim(); Lifetime = "Transient"; Line = $lineNum })
                 continue
             }
         }
     }
 
-    return $result
+    return @{ Registrations = $registrations.ToArray() }
 }
