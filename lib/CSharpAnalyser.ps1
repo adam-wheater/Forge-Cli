@@ -480,7 +480,7 @@ function Get-DIRegistrationsRegex {
 
     $regList = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($file in $targetFiles) {
-        $content = Get-Content $file -ErrorAction SilentlyContinue
+        $content = Get-Content $file -ReadCount 0 -ErrorAction SilentlyContinue
         if (-not $content) { continue }
 
         for ($i = 0; $i -lt $content.Count; $i++) {
