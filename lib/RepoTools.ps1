@@ -4,14 +4,17 @@ function Score-File {
     param ([Parameter(Mandatory)][string]$Path)
 
     $score = 0
-    if ($Path -match 'Test|Tests') { $score += 50 }
-    if ($Path -match 'Service|Controller|Manager|Repository|Repo') { $score += 15 }
-    if ($Path -match '\.cs$') { $score += 5 }
-    if ($Path -match '\.ps1$') { $score += 5 }
-    if ($Path -match '\.Tests\.ps1$') { $score += 50 }
-    if ($Path -match 'Module|Orchestrator|Agent') { $score += 15 }
-    if ($Path -match '\.system\.txt$') { $score += 10 }
-    if ($Path -match 'Program|Startup') { $score -= 10 }
+    # Optimisation: Use switch -Regex for single-pass matching
+    switch -Regex ($Path) {
+        'Test|Tests' { $score += 50 }
+        'Service|Controller|Manager|Repository|Repo' { $score += 15 }
+        '\.cs$' { $score += 5 }
+        '\.ps1$' { $score += 5 }
+        '\.Tests\.ps1$' { $score += 50 }
+        'Module|Orchestrator|Agent' { $score += 15 }
+        '\.system\.txt$' { $score += 10 }
+        'Program|Startup' { $score -= 10 }
+    }
     $score -= (Get-RelevanceScore $Path)
     $score
 }
@@ -23,11 +26,25 @@ function Search-Files {
         return ($Pattern | ForEach-Object { Search-Files $_ }) | Select-Object -Unique
     }
 
-    git ls-files |
-        Where-Object { $_ -match $Pattern } |
-        ForEach-Object {
-            [PSCustomObject]@{ Path = $_; Score = (Score-File $_) }
-        } |
+    # Optimisation: Pre-compile regex and avoid pipeline overhead
+    try {
+        $regex = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    } catch {
+        Write-Warning "Invalid regex pattern: $Pattern"
+        return @()
+    }
+
+    $files = git ls-files
+    $results = [System.Collections.Generic.List[PSCustomObject]]::new()
+
+    foreach ($file in $files) {
+        if ($regex.IsMatch($file)) {
+            $score = Score-File $file
+            $results.Add([PSCustomObject]@{ Path = $file; Score = $score })
+        }
+    }
+
+    $results |
         Sort-Object Score -Descending |
         Select-Object -First 25 |
         ForEach-Object { $_.Path }
