@@ -58,6 +58,73 @@ function Read-ResponsesApiText {
     return $null
 }
 
+function Invoke-WithRetry {
+    param (
+        [Parameter(Mandatory)]
+        [scriptblock]$Action,
+
+        [string]$ErrorMessagePrefix = "Operation failed",
+
+        [int]$MaxRetries = 3,
+
+        [scriptblock]$ShouldRetry = $null
+    )
+
+    for ($attempt = 1; $attempt -le $MaxRetries; $attempt++) {
+        try {
+            return (& $Action)
+        } catch {
+            $ex = $_.Exception
+            $errMsg = $ex.Message
+            $safeBody = $null
+
+            # Helper to read response body for logging/analysis
+            if ($ex.Response) {
+                try {
+                    $respStream = $ex.Response.GetResponseStream()
+                    if ($respStream.CanRead) {
+                        $reader = New-Object System.IO.StreamReader($respStream)
+                        $respBody = $reader.ReadToEnd()
+                        $reader.Close()
+
+                        $safeBody = $respBody -replace '(?i)(api-key|password|secret|token)\s*[:=]\s*\S+', '$1=***'
+                        if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
+
+                        $errMsg = "$errMsg -- ResponseBody: $safeBody"
+                        Write-Host "Azure error body: $safeBody"
+                    }
+                } catch {}
+            }
+
+            # Custom Retry Logic
+            if ($ShouldRetry) {
+                $retryContext = @{
+                    Exception = $ex
+                    ResponseBody = $safeBody
+                    Attempt = $attempt
+                    MaxRetries = $MaxRetries
+                }
+
+                $decision = & $ShouldRetry -Context $retryContext
+
+                if ($decision -eq 'RetryImmediate') {
+                    continue
+                } elseif ($decision -eq 'Abort') {
+                    throw
+                }
+            }
+
+            if ($attempt -eq $MaxRetries) {
+                throw "$ErrorMessagePrefix after $MaxRetries attempts: $errMsg"
+            }
+
+            $backoffSeconds = [Math]::Min([Math]::Pow(2, $attempt), 30)
+            Write-Warning "$ErrorMessagePrefix attempt $attempt failed, retrying in ${backoffSeconds}s: $errMsg"
+            Start-Sleep -Seconds $backoffSeconds
+        }
+    }
+}
+
 function Invoke-AzureAgent {
     param (
         [Parameter(Mandatory)][string]$Deployment,
@@ -112,61 +179,47 @@ function Invoke-AzureAgent {
     }
 
     try {
-        $body = $bodyObj | ConvertTo-Json -Depth 12
+        $initialBody = $bodyObj | ConvertTo-Json -Depth 12
     } catch {
-        $body = (ConvertTo-Json $bodyObj -Depth 12)
+        $initialBody = (ConvertTo-Json $bodyObj -Depth 12)
     }
 
-    $maxRetries = 3
-    $response = $null
-    $triedAlt = $false
-    for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
-        try {
-            Write-Host "Calling Azure OpenAI URI: $uri"
-            $response = Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $body -TimeoutSec 120
-            break
-        } catch {
-            $errMsg = $_.Exception.Message
-            $respBody = $null
+    $state = @{
+        Body = $initialBody
+        TriedAlt = $false
+        AltBodyObj = $altBodyObj
+    }
+
+    $Action = {
+        Write-Host "Calling Azure OpenAI URI: $uri"
+        return Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $state.Body -TimeoutSec 120
+    }
+
+    $ShouldRetry = {
+        param($Context)
+        $ex = $Context.Exception
+        $respBody = $Context.ResponseBody
+
+        if (-not $state.TriedAlt -and $state.AltBodyObj -and $ex.Response) {
             try {
-                if ($_.Exception.Response) {
-                    $respStream = $_.Exception.Response.GetResponseStream()
-                    $reader = New-Object System.IO.StreamReader($respStream)
-                    $respBody = $reader.ReadToEnd()
-                    $reader.Close()
-                    $safeBody = $respBody -replace '(?i)(api-key|password|secret|token)\s*[:=]\s*\S+', '$1=***'
-                    if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
-                    $errMsg = "$errMsg -- ResponseBody: $safeBody"
-                    Write-Host "Azure error body: $safeBody"
-                }
-            } catch {}
-
-            # On 400, try alternate body format if available
-            if (-not $triedAlt -and $altBodyObj -and $_.Exception.Response) {
+                $statusCode = [int]$ex.Response.StatusCode
+            } catch { $statusCode = 0 }
+            if ($statusCode -eq 400 -or ($respBody -and $respBody -match 'Bad Request')) {
+                Write-Warning 'Responses API returned 400; retrying with alternate body format'
+                $state.TriedAlt = $true
                 try {
-                    $statusCode = [int]$_.Exception.Response.StatusCode
-                } catch { $statusCode = 0 }
-                if ($statusCode -eq 400 -or ($respBody -and $respBody -match 'Bad Request')) {
-                    Write-Warning 'Responses API returned 400; retrying with alternate body format'
-                    $triedAlt = $true
-                    try {
-                        $body = $altBodyObj | ConvertTo-Json -Depth 12
-                    } catch {
-                        $body = ConvertTo-Json $altBodyObj -Depth 12
-                    }
-                    Start-Sleep -Seconds 1
-                    continue
+                    $state.Body = $state.AltBodyObj | ConvertTo-Json -Depth 12
+                } catch {
+                    $state.Body = ConvertTo-Json $state.AltBodyObj -Depth 12
                 }
+                Start-Sleep -Seconds 1
+                return 'RetryImmediate'
             }
-
-            if ($attempt -eq $maxRetries) {
-                throw "Azure OpenAI API call failed after $maxRetries attempts: $errMsg"
-            }
-            $backoffSeconds = [Math]::Min([Math]::Pow(2, $attempt), 30)
-            Write-Warning "API call attempt $attempt failed, retrying in ${backoffSeconds}s: $errMsg"
-            Start-Sleep -Seconds $backoffSeconds
         }
+        return $null
     }
+
+    $response = Invoke-WithRetry -Action $Action -ShouldRetry $ShouldRetry -ErrorMessagePrefix "Azure OpenAI API call failed"
 
     if (-not $response) {
         throw 'Azure OpenAI API returned no response'
@@ -241,68 +294,67 @@ function Invoke-AzureAgentStream {
     $headers = Get-AzureAuthHeaders
     $headers["Accept"] = "text/event-stream"
 
-    $maxRetries = 3
-    $accumulated = ""
-    $promptTokens = 0
-    $completionTokens = 0
-
-    for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
-        try {
-            $webRequest = [System.Net.HttpWebRequest]::Create($uri)
-            $webRequest.Method = "POST"
-            $webRequest.ContentType = "application/json"
-            foreach ($key in $headers.Keys) {
-                if ($key -ne "Content-Type") {
-                    $webRequest.Headers.Add($key, $headers[$key])
-                }
+    $Action = {
+        $webRequest = [System.Net.HttpWebRequest]::Create($uri)
+        $webRequest.Method = "POST"
+        $webRequest.ContentType = "application/json"
+        foreach ($key in $headers.Keys) {
+            if ($key -ne "Content-Type") {
+                $webRequest.Headers.Add($key, $headers[$key])
             }
-            $webRequest.Timeout = 120000
+        }
+        $webRequest.Timeout = 120000
 
-            $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
-            $webRequest.ContentLength = $bodyBytes.Length
-            $requestStream = $webRequest.GetRequestStream()
-            $requestStream.Write($bodyBytes, 0, $bodyBytes.Length)
-            $requestStream.Close()
+        $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+        $webRequest.ContentLength = $bodyBytes.Length
+        $requestStream = $webRequest.GetRequestStream()
+        $requestStream.Write($bodyBytes, 0, $bodyBytes.Length)
+        $requestStream.Close()
 
-            $webResponse = $webRequest.GetResponse()
-            $responseStream = $webResponse.GetResponseStream()
-            $reader = New-Object System.IO.StreamReader($responseStream)
+        $webResponse = $webRequest.GetResponse()
+        $responseStream = $webResponse.GetResponseStream()
+        $reader = New-Object System.IO.StreamReader($responseStream)
 
-            $accumulated = ""
-            while (-not $reader.EndOfStream) {
-                $line = $reader.ReadLine()
-                if ($line -match '^data:\s*(.+)$') {
-                    $data = $matches[1].Trim()
-                    if ($data -eq "[DONE]") { break }
-                    try {
-                        $chunk = $data | ConvertFrom-Json
-                        if ($chunk.choices -and $chunk.choices[0].delta -and $chunk.choices[0].delta.content) {
-                            $content = $chunk.choices[0].delta.content
-                            $accumulated += $content
-                            Write-Host $content -NoNewline
-                        }
-                        if ($chunk.usage) {
-                            $promptTokens = $chunk.usage.prompt_tokens
-                            $completionTokens = $chunk.usage.completion_tokens
-                        }
-                    } catch {}
-                }
+        $accumulated = ""
+        $pTokens = 0
+        $cTokens = 0
+        while (-not $reader.EndOfStream) {
+            $line = $reader.ReadLine()
+            if ($line -match '^data:\s*(.+)$') {
+                $data = $matches[1].Trim()
+                if ($data -eq "[DONE]") { break }
+                try {
+                    $chunk = $data | ConvertFrom-Json
+                    if ($chunk.choices -and $chunk.choices[0].delta -and $chunk.choices[0].delta.content) {
+                        $content = $chunk.choices[0].delta.content
+                        $accumulated += $content
+                        Write-Host $content -NoNewline
+                    }
+                    if ($chunk.usage) {
+                        $pTokens = $chunk.usage.prompt_tokens
+                        $cTokens = $chunk.usage.completion_tokens
+                    }
+                } catch {}
             }
+        }
 
-            $reader.Close()
-            $responseStream.Close()
-            $webResponse.Close()
-            Write-Host ""
-            break
-        } catch {
-            if ($attempt -eq $maxRetries) {
-                throw "Azure OpenAI streaming API call failed after $maxRetries attempts: $($_.Exception.Message)"
-            }
-            $backoffSeconds = [Math]::Min([Math]::Pow(2, $attempt), 30)
-            Write-Warning "Streaming API call attempt $attempt failed, retrying in ${backoffSeconds}s: $($_.Exception.Message)"
-            Start-Sleep -Seconds $backoffSeconds
+        $reader.Close()
+        $responseStream.Close()
+        $webResponse.Close()
+        Write-Host ""
+
+        return @{
+            Accumulated = $accumulated
+            PromptTokens = $pTokens
+            CompletionTokens = $cTokens
         }
     }
+
+    $result = Invoke-WithRetry -Action $Action -ErrorMessagePrefix "Azure OpenAI streaming API call failed"
+
+    $accumulated = $result.Accumulated
+    $promptTokens = $result.PromptTokens
+    $completionTokens = $result.CompletionTokens
 
     if ($promptTokens -gt 0 -or $completionTokens -gt 0) {
         Add-TokenUsage -Prompt $promptTokens -Completion $completionTokens
@@ -359,52 +411,37 @@ function Invoke-AzureAgentWithTools {
         $bodyObj.tool_choice = "auto"
     }
 
-    $maxRetries = 3
-    $response = $null
-    $triedAlt = $false
-    for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
-        try {
-            $body = $bodyObj | ConvertTo-Json -Depth 20
-            Write-Host "Calling Azure OpenAI (with tools) URI: $uri"
-            $response = Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $body -TimeoutSec 120
-            break
-        } catch {
-            $errMsg = $_.Exception.Message
-            $respBody = $null
-            try {
-                if ($_.Exception.Response) {
-                    $respStream = $_.Exception.Response.GetResponseStream()
-                    $reader = New-Object System.IO.StreamReader($respStream)
-                    $respBody = $reader.ReadToEnd()
-                    $reader.Close()
-                    $safeBody = $respBody -replace '(?i)(api-key|password|secret|token)\s*[:=]\s*\S+', '$1=***'
-                    if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
-                    Write-Host "Azure (with tools) error body: $safeBody"
-                }
-            } catch {}
-
-            # On 400 try with input as message array instead of string
-            if (-not $triedAlt -and $apiVer -and ($apiVer -match '^20(2[5-9]|[3-9]\d)' -or ($Global:ForgeConfig -and $Global:ForgeConfig['useResponsesApi']))) {
-                try {
-                    $statusCode = [int]$_.Exception.Response.StatusCode
-                } catch { $statusCode = 0 }
-                if ($statusCode -eq 400) {
-                    Write-Warning 'Responses API (with tools) returned 400; retrying with array input'
-                    $triedAlt = $true
-                    $bodyObj.input = @( @{ role = 'user'; content = $UserPrompt } )
-                    Start-Sleep -Seconds 1
-                    continue
-                }
-            }
-
-            if ($attempt -eq $maxRetries) {
-                throw "Azure OpenAI API (with tools) call failed after $maxRetries attempts: $errMsg"
-            }
-            $backoffSeconds = [Math]::Min([Math]::Pow(2, $attempt), 30)
-            Write-Warning "API call (with tools) attempt $attempt failed, retrying in ${backoffSeconds}s: $errMsg"
-            Start-Sleep -Seconds $backoffSeconds
-        }
+    $state = @{
+        BodyObj = $bodyObj
+        TriedAlt = $false
     }
+
+    $Action = {
+        $body = $state.BodyObj | ConvertTo-Json -Depth 20
+        Write-Host "Calling Azure OpenAI (with tools) URI: $uri"
+        return Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $body -TimeoutSec 120
+    }
+
+    $ShouldRetry = {
+        param($Context)
+        $ex = $Context.Exception
+
+        if (-not $state.TriedAlt -and $apiVer -and ($apiVer -match '^20(2[5-9]|[3-9]\d)' -or ($Global:ForgeConfig -and $Global:ForgeConfig['useResponsesApi']))) {
+            try {
+                $statusCode = [int]$ex.Response.StatusCode
+            } catch { $statusCode = 0 }
+            if ($statusCode -eq 400) {
+                Write-Warning 'Responses API (with tools) returned 400; retrying with array input'
+                $state.TriedAlt = $true
+                $state.BodyObj.input = @( @{ role = 'user'; content = $UserPrompt } )
+                Start-Sleep -Seconds 1
+                return 'RetryImmediate'
+            }
+        }
+        return $null
+    }
+
+    $response = Invoke-WithRetry -Action $Action -ShouldRetry $ShouldRetry -ErrorMessagePrefix "Azure OpenAI API (with tools) call failed"
 
     if (-not $response) {
         throw 'Azure OpenAI API (with tools) returned no response'
