@@ -201,7 +201,7 @@ function Get-BuilderDefaultValue {
     if ($name -match 'url' -or $name -match 'link') { return '"https://example.com"' }
     if ($name -match 'description') { return '"Test description"' }
     if ($name -match 'title') { return '"Test Title"' }
-    if ($name -match 'password') { return '"P@ssw0rd123!"' }
+    if ($name -match 'password') { return '"P@ss!' + [guid]::NewGuid().ToString('N').Substring(0,10) + '"' }
     if ($name -match 'address') { return '"123 Test Street"' }
 
     # Type-based defaults
