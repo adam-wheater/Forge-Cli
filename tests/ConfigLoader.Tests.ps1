@@ -11,6 +11,7 @@ Describe 'Load-ForgeConfig' {
         [System.Environment]::SetEnvironmentVariable("REDIS_CONNECTION_STRING", $null)
         [System.Environment]::SetEnvironmentVariable("FORGE_DEBUG_MODE", $null)
         [System.Environment]::SetEnvironmentVariable("FORGE_MAX_COST_GBP", $null)
+        [System.Environment]::SetEnvironmentVariable("FORGE_MAX_TOTAL_TOKENS", $null)
     }
 
     Context 'When no config file exists' {
@@ -109,6 +110,100 @@ Describe 'Load-ForgeConfig' {
             Remove-Item $script:tempBadPath -Force
         }
     }
+
+    Context 'Validation' {
+        It 'Throws on critical config error (maxLoops)' {
+            [System.Environment]::SetEnvironmentVariable("FORGE_MAX_LOOPS", "-1")
+            { Load-ForgeConfig -ConfigPath "/tmp/nonexistent-forge-config.json" } | Should -Throw "Config validation error: maxLoops must be greater than 0*"
+        }
+
+        It 'Throws on critical config error (maxTotalTokens)' {
+            [System.Environment]::SetEnvironmentVariable("FORGE_MAX_TOTAL_TOKENS", "-1")
+            { Load-ForgeConfig -ConfigPath "/tmp/nonexistent-forge-config.json" } | Should -Throw "Config validation error: maxTotalTokens must be greater than 0*"
+        }
+
+        It 'Throws on critical config error (maxCostGBP)' {
+            [System.Environment]::SetEnvironmentVariable("FORGE_MAX_COST_GBP", "-1.5")
+            { Load-ForgeConfig -ConfigPath "/tmp/nonexistent-forge-config.json" } | Should -Throw "Config validation error: maxCostGBP must be greater than 0*"
+        }
+    }
+}
+
+Describe 'Test-ForgeConfig' {
+    BeforeEach {
+        # Mock necessary env vars to avoid noise from global environment
+        $env:BUILDER_DEPLOYMENT = "builder"
+        $env:JUDGE_DEPLOYMENT = "judge"
+        $env:AZURE_OPENAI_ENDPOINT = "https://example.com"
+    }
+
+    AfterEach {
+        $env:BUILDER_DEPLOYMENT = $null
+        $env:JUDGE_DEPLOYMENT = $null
+        $env:AZURE_OPENAI_ENDPOINT = $null
+    }
+
+    It 'Returns warning for non-positive numeric values' {
+        $config = @{
+            maxLoops = 0
+            maxTotalTokens = -1
+            maxCostGBP = 0.0
+        }
+        $warnings = Test-ForgeConfig -Config $config
+        $warnings | Should -Match "maxLoops must be greater than 0"
+        $warnings | Should -Match "maxTotalTokens must be greater than 0"
+        $warnings | Should -Match "maxCostGBP must be greater than 0"
+    }
+
+    It 'Returns warning when maxIterationTokens exceeds maxTotalTokens' {
+        $config = @{
+            maxIterationTokens = 100
+            maxTotalTokens = 50
+        }
+        $warnings = Test-ForgeConfig -Config $config
+        $warnings | Should -Match "maxIterationTokens .* exceeds maxTotalTokens"
+    }
+
+    It 'Returns warning for invalid memoryBackend' {
+        $config = @{ memoryBackend = "invalid" }
+        $warnings = Test-ForgeConfig -Config $config
+        $warnings | Should -Match "memoryBackend must be 'local' or 'redis'"
+    }
+
+    It 'Returns warning for missing redisConnectionString' {
+        $config = @{ memoryBackend = "redis"; redisConnectionString = "" }
+        $warnings = Test-ForgeConfig -Config $config
+        $warnings | Should -Match "memoryBackend is 'redis' but redisConnectionString is empty"
+    }
+
+    It 'Returns warning for invalid AZURE_OPENAI_ENDPOINT' {
+        $env:AZURE_OPENAI_ENDPOINT = "http://insecure.com"
+        $warnings = Test-ForgeConfig -Config @{}
+        $warnings | Should -Match "AZURE_OPENAI_ENDPOINT should start with https://"
+    }
+
+    It 'Returns warning when embeddingEndpoint is not https' {
+        $config = @{ embeddingEndpoint = "http://insecure.com" }
+        $warnings = Test-ForgeConfig -Config $config
+        $warnings | Should -Match "embeddingEndpoint should start with https://"
+    }
+
+    It 'Returns warning for inconsistent embedding config' {
+        $config1 = @{ embeddingEndpoint = "https://foo"; embeddingModel = "" }
+        $warnings1 = Test-ForgeConfig -Config $config1
+        $warnings1 | Should -Match "embeddingEndpoint is set but embeddingModel is empty"
+
+        $config2 = @{ embeddingApiKey = "key"; embeddingEndpoint = "" }
+        $warnings2 = Test-ForgeConfig -Config $config2
+        $warnings2 | Should -Match "embeddingApiKey is set but embeddingEndpoint is empty"
+    }
+
+    It 'Returns warning when builder deployment is missing' {
+        $env:BUILDER_DEPLOYMENT = ""
+        $config = @{ builderDeployment = "" }
+        $warnings = Test-ForgeConfig -Config $config
+        $warnings | Should -Match "No builder deployment configured"
+    }
 }
 
 AfterAll {
@@ -118,4 +213,5 @@ AfterAll {
     [System.Environment]::SetEnvironmentVariable("REDIS_CONNECTION_STRING", $null)
     [System.Environment]::SetEnvironmentVariable("FORGE_DEBUG_MODE", $null)
     [System.Environment]::SetEnvironmentVariable("FORGE_MAX_COST_GBP", $null)
+    [System.Environment]::SetEnvironmentVariable("FORGE_MAX_TOTAL_TOKENS", $null)
 }
