@@ -7,6 +7,7 @@
 . "$PSScriptRoot/CSharpAnalyser.ps1"
 . "$PSScriptRoot/MockScaffolder.ps1"
 . "$PSScriptRoot/TestDataBuilder.ps1"
+. "$PSScriptRoot/RepoTools.ps1"
 
 function Get-DtoProperties {
     [CmdletBinding()]
@@ -120,17 +121,7 @@ function Get-ApiControllers {
     }
 
     # Find all .cs files
-    $csFiles = @()
-    try {
-        $csFiles = @(git -C $RepoRoot ls-files '*.cs' 2>$null | ForEach-Object { Join-Path $RepoRoot $_ })
-    } catch {
-        # Fallback if not a git repo
-    }
-    if ($csFiles.Count -eq 0) {
-        $csFiles = @(Get-ChildItem $RepoRoot -Filter '*.cs' -Recurse -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '[\\/](obj|bin|\.git|node_modules)[\\/]' } |
-            ForEach-Object { $_.FullName })
-    }
+    $csFiles = Find-SourceFiles -RepoRoot $RepoRoot -Filter '*.cs'
 
     $controllers = @()
 

@@ -220,6 +220,10 @@ $PluginDefinition = @{
         }
 
         It 'Registers builtin plugins' {
+            Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'Get-CSharpSymbols' }
+            Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'dotnet-stryker' }
+            Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'Parse-CoberturaReport' }
+
             Register-BuiltinPlugins
 
             $names = $Global:LoadedPlugins.Name
@@ -229,6 +233,10 @@ $PluginDefinition = @{
         }
 
         It 'Does not duplicate plugins' {
+            Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'Get-CSharpSymbols' }
+            Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'dotnet-stryker' }
+            Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'Parse-CoberturaReport' }
+
             Register-BuiltinPlugins
             Register-BuiltinPlugins # Call twice
 
