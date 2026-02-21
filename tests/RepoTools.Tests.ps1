@@ -259,6 +259,17 @@ Describe 'Open-File' {
     Context 'With existing file' {
         It 'Returns file content' {
             Mock -CommandName Test-Path -MockWith { $true }
+
+            # Mock Repo Root resolution
+            Mock -CommandName Resolve-Path -MockWith {
+                 return [PSCustomObject]@{ Path = '/app' }
+            } -ParameterFilter { $Path -like "*.." }
+
+            # Mock File resolution
+            Mock -CommandName Convert-Path -MockWith {
+                return '/app/file.ps1'
+            }
+
             Mock -CommandName Get-Content -MockWith { 'line1'; 'line2' }
             Mock -CommandName Mark-Relevant -MockWith { }
             $result = Open-File 'file.ps1' 10
@@ -270,6 +281,25 @@ Describe 'Open-File' {
             Mock -CommandName Test-Path -MockWith { $false }
             $result = Open-File 'nofile.ps1'
             $result | Should -Be 'FILE_NOT_FOUND'
+        }
+    }
+
+    Context 'With path traversal' {
+        It 'Returns ACCESS_DENIED' {
+             Mock -CommandName Test-Path -MockWith { $true }
+
+             # Mock Repo Root resolution
+             Mock -CommandName Resolve-Path -MockWith {
+                 return [PSCustomObject]@{ Path = '/app' }
+             } -ParameterFilter { $Path -like "*.." }
+
+             # Mock File resolution to outside path
+             Mock -CommandName Convert-Path -MockWith {
+                 return '/etc/passwd'
+             }
+
+             $result = Open-File '../../etc/passwd'
+             $result | Should -Be 'ACCESS_DENIED'
         }
     }
 }

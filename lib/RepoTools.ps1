@@ -133,8 +133,35 @@ function Open-File {
     param ([Parameter(Mandatory)][string]$Path, [int]$MaxLines = 400)
 
     if (-not (Test-Path $Path)) { return "FILE_NOT_FOUND" }
-    Mark-Relevant $Path
-    (Get-Content $Path -TotalCount $MaxLines) -join "`n"
+
+    # Validate that the resolved path is within the repository root
+    try {
+        $repoRoot = (Resolve-Path "$PSScriptRoot/.." -ErrorAction Stop).Path
+        # Normalize repo root to have consistent separators
+        $repoRoot = $repoRoot.Replace('\', '/')
+
+        $resolvedPaths = Convert-Path -Path $Path -ErrorAction Stop
+
+        foreach ($resPath in $resolvedPaths) {
+            $p = $resPath.Replace('\', '/')
+
+            # Ensure the path starts with the repo root directory
+            # append / to repoRoot to ensure we don't match partial directory names
+            $rootCheck = $repoRoot
+            if (-not $rootCheck.EndsWith('/')) {
+                $rootCheck += '/'
+            }
+
+            if (-not $p.StartsWith($rootCheck) -and $p -ne $repoRoot) {
+                return "ACCESS_DENIED"
+            }
+        }
+
+        Mark-Relevant $Path
+        (Get-Content -Path $resolvedPaths -TotalCount $MaxLines) -join "`n"
+    } catch {
+        return "FILE_NOT_FOUND"
+    }
 }
 
 function Show-Diff {
