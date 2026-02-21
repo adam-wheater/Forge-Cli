@@ -58,6 +58,39 @@ function Read-ResponsesApiText {
     return $null
 }
 
+function Redact-AzureResponse {
+    param($Response)
+    try {
+        # Deep clone via JSON to avoid modifying the original object
+        $json = $Response | ConvertTo-Json -Depth 20 -WarningAction SilentlyContinue
+        $clone = $json | ConvertFrom-Json -ErrorAction SilentlyContinue
+
+        # Redact Chat Completions content
+        if ($clone.choices) {
+            foreach ($choice in $clone.choices) {
+                if ($choice.message) {
+                    if ($choice.message.content) { $choice.message.content = "[REDACTED]" }
+                    if ($choice.message.tool_calls) {
+                        foreach ($tc in $choice.message.tool_calls) {
+                            if ($tc.function -and $tc.function.arguments) {
+                                $tc.function.arguments = "[REDACTED]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        # Redact Responses API content
+        if ($clone.output_text) { $clone.output_text = "[REDACTED]" }
+        if ($clone.output) { $clone.output = "[REDACTED]" }
+
+        return $clone
+    } catch {
+        return "Error redacting response: $_"
+    }
+}
+
 function Invoke-AzureAgent {
     param (
         [Parameter(Mandatory)][string]$Deployment,
@@ -179,7 +212,8 @@ function Invoke-AzureAgent {
             if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
             $ts = (Get-Date).ToString('yyyyMMdd-HHmmss-fff')
             $rawPath = Join-Path $logDir "azure-raw-$ts.json"
-            $response | ConvertTo-Json -Depth 20 | Out-File -FilePath $rawPath -Encoding utf8 -Force
+            $safeResponse = Redact-AzureResponse -Response $response
+            $safeResponse | ConvertTo-Json -Depth 20 | Out-File -FilePath $rawPath -Encoding utf8 -Force
         } catch {}
     }
 
