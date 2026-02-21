@@ -32,19 +32,19 @@ function Read-TokenUsage {
 function Read-ResponsesApiText {
     param($Output)
     if (-not $Output -or $Output.Count -eq 0) { return $null }
-    $pieces = @()
+    $pieces = [System.Collections.Generic.List[string]]::new()
     foreach ($seg in $Output) {
         if ($seg.type -and $seg.type -eq 'message' -and $seg.content) {
             foreach ($c in $seg.content) {
-                if ($c.type -and $c.type -eq 'output_text' -and $c.text) { $pieces += $c.text }
-                elseif ($c.text) { $pieces += $c.text }
+                if ($c.type -and $c.type -eq 'output_text' -and $c.text) { $pieces.Add($c.text) }
+                elseif ($c.text) { $pieces.Add($c.text) }
             }
         } elseif ($seg.content) {
             foreach ($c in $seg.content) {
-                if ($c.text) { $pieces += $c.text }
+                if ($c.text) { $pieces.Add($c.text) }
             }
         } elseif ($seg.text) {
-            $pieces += $seg.text
+            $pieces.Add($seg.text)
         }
     }
     $out = ($pieces -join "`n").Trim()
