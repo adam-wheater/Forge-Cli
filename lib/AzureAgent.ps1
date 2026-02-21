@@ -4,6 +4,9 @@
 # Heuristic: if the key contains dots (JWT format), assume Bearer; otherwise api-key.
 function Get-AzureAuthHeaders {
     $apiKey = $env:AZURE_OPENAI_API_KEY
+    if ([string]::IsNullOrWhiteSpace($apiKey)) {
+        throw "AZURE_OPENAI_API_KEY environment variable is not set."
+    }
     $headers = @{ 'Content-Type' = 'application/json' }
     if ($apiKey -match '\.[A-Za-z0-9_-]+\.') {
         $headers['Authorization'] = "Bearer $apiKey"

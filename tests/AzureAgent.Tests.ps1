@@ -84,3 +84,38 @@ Describe 'Invoke-AzureAgent' {
         }
     }
 }
+
+Describe 'Get-AzureAuthHeaders' {
+    BeforeEach {
+        $script:oldKey = $env:AZURE_OPENAI_API_KEY
+        $env:AZURE_OPENAI_API_KEY = $null
+    }
+
+    AfterEach {
+        $env:AZURE_OPENAI_API_KEY = $script:oldKey
+    }
+
+    It 'Throws when AZURE_OPENAI_API_KEY is not set' {
+        { Get-AzureAuthHeaders } | Should -Throw "AZURE_OPENAI_API_KEY environment variable is not set."
+    }
+
+    It 'Uses Bearer token when API key contains dots' {
+        $env:AZURE_OPENAI_API_KEY = "abc.123.def"
+        $headers = Get-AzureAuthHeaders
+        $headers['Authorization'] | Should -Be "Bearer abc.123.def"
+        $headers.ContainsKey('api-key') | Should -Be $false
+    }
+
+    It 'Uses api-key header when API key does not contain dots' {
+        $env:AZURE_OPENAI_API_KEY = "my-secret-key"
+        $headers = Get-AzureAuthHeaders
+        $headers['api-key'] | Should -Be "my-secret-key"
+        $headers.ContainsKey('Authorization') | Should -Be $false
+    }
+
+    It 'Includes Content-Type header' {
+        $env:AZURE_OPENAI_API_KEY = "test"
+        $headers = Get-AzureAuthHeaders
+        $headers['Content-Type'] | Should -Be 'application/json'
+    }
+}
