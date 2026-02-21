@@ -156,19 +156,21 @@ function Get-CSharpSymbolsRegex {
 
         # Parse base class and interfaces from inheritance clause
         $baseClass = ""
-        $interfaces = @()
+        $interfacesList = [System.Collections.Generic.List[string]]::new()
         if ($cm.Groups[6].Value) {
-            $inheritParts = $cm.Groups[6].Value -split ',' | ForEach-Object { $_.Trim() }
-            foreach ($part in $inheritParts) {
+            $inheritParts = $cm.Groups[6].Value -split ','
+            foreach ($rawPart in $inheritParts) {
+                $part = $rawPart.Trim()
                 if ($part -match '^I[A-Z]') {
-                    $interfaces += $part
+                    $interfacesList.Add($part)
                 } elseif (-not $baseClass) {
                     $baseClass = $part
                 } else {
-                    $interfaces += $part
+                    $interfacesList.Add($part)
                 }
             }
         }
+        $interfaces = $interfacesList.ToArray()
 
         # Find class line number
         $classLineNum = 0
