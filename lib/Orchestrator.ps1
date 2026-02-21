@@ -294,55 +294,84 @@ function Invoke-ExplainError {
     }
 
     # Parse common C# error patterns
-    if ($ErrorText -match "CS0246.*?'([^']+)'") {
-        $result.Category = "MissingType"
-        $result.Explanation = "Missing using directive or assembly reference for '$($matches[1])'"
-        $result.SuggestedAction = "Add the correct using directive or install the required NuGet package for '$($matches[1])'"
-    }
-    elseif ($ErrorText -match 'NullReferenceException') {
-        $result.Category = "NullReference"
-        $result.Explanation = "Object is null. Check mock setup returns non-null values."
-        $result.SuggestedAction = "Verify mock Setup() calls return non-null values and all dependencies are properly initialized"
-    }
-    elseif ($ErrorText -match 'InvalidOperationException') {
-        $result.Category = "InvalidOperation"
-        $result.Explanation = "Check service registration in DI container."
-        $result.SuggestedAction = "Verify all required services are registered in Startup.cs or Program.cs"
-    }
-    elseif ($ErrorText -match 'NotImplementedException') {
-        $result.Category = "NotImplemented"
-        $result.Explanation = "Method has throw new NotImplementedException() — needs implementation."
-        $result.SuggestedAction = "Implement the method body instead of throwing NotImplementedException"
-    }
-    elseif ($ErrorText -match 'CS1002') {
-        $result.Category = "SyntaxError"
-        $result.Explanation = "Missing semicolon in C# code"
-        $result.SuggestedAction = "Add the missing semicolon at the indicated line"
-    }
-    elseif ($ErrorText -match 'CS1513') {
-        $result.Category = "SyntaxError"
-        $result.Explanation = "Expected closing brace '}' in C# code"
-        $result.SuggestedAction = "Add the missing closing brace at the indicated location"
-    }
-    elseif ($ErrorText -match "CS0103.*?'([^']+)'") {
-        $result.Category = "UndefinedName"
-        $result.Explanation = "The name '$($matches[1])' does not exist in the current context"
-        $result.SuggestedAction = "Declare the variable '$($matches[1])' or add the correct using directive"
-    }
-    elseif ($ErrorText -match 'CS0029') {
-        $result.Category = "TypeMismatch"
-        $result.Explanation = "Cannot implicitly convert between types"
-        $result.SuggestedAction = "Add an explicit cast or change the variable type to match"
-    }
-    elseif ($ErrorText -match 'CS0115') {
-        $result.Category = "OverrideError"
-        $result.Explanation = "No suitable method found to override"
-        $result.SuggestedAction = "Check the base class has the method marked as virtual or abstract"
-    }
-    else {
-        $result.Category = "General"
-        $result.Explanation = "Unrecognized error pattern"
-        $result.SuggestedAction = "Review the full error message and stack trace for more context"
+    $patterns = @(
+        @{
+            Pattern = "CS0246.*?'([^']+)'"
+            Category = "MissingType"
+            Explanation = { param($m) "Missing using directive or assembly reference for '$($m[1])'" }
+            SuggestedAction = { param($m) "Add the correct using directive or install the required NuGet package for '$($m[1])'" }
+        },
+        @{
+            Pattern = 'NullReferenceException'
+            Category = "NullReference"
+            Explanation = "Object is null. Check mock setup returns non-null values."
+            SuggestedAction = "Verify mock Setup() calls return non-null values and all dependencies are properly initialized"
+        },
+        @{
+            Pattern = 'InvalidOperationException'
+            Category = "InvalidOperation"
+            Explanation = "Check service registration in DI container."
+            SuggestedAction = "Verify all required services are registered in Startup.cs or Program.cs"
+        },
+        @{
+            Pattern = 'NotImplementedException'
+            Category = "NotImplemented"
+            Explanation = "Method has throw new NotImplementedException() — needs implementation."
+            SuggestedAction = "Implement the method body instead of throwing NotImplementedException"
+        },
+        @{
+            Pattern = 'CS1002'
+            Category = "SyntaxError"
+            Explanation = "Missing semicolon in C# code"
+            SuggestedAction = "Add the missing semicolon at the indicated line"
+        },
+        @{
+            Pattern = 'CS1513'
+            Category = "SyntaxError"
+            Explanation = "Expected closing brace '}' in C# code"
+            SuggestedAction = "Add the missing closing brace at the indicated location"
+        },
+        @{
+            Pattern = "CS0103.*?'([^']+)'"
+            Category = "UndefinedName"
+            Explanation = { param($m) "The name '$($m[1])' does not exist in the current context" }
+            SuggestedAction = { param($m) "Declare the variable '$($m[1])' or add the correct using directive" }
+        },
+        @{
+            Pattern = 'CS0029'
+            Category = "TypeMismatch"
+            Explanation = "Cannot implicitly convert between types"
+            SuggestedAction = "Add an explicit cast or change the variable type to match"
+        },
+        @{
+            Pattern = 'CS0115'
+            Category = "OverrideError"
+            Explanation = "No suitable method found to override"
+            SuggestedAction = "Check the base class has the method marked as virtual or abstract"
+        }
+    )
+
+    $result.Category = "General"
+    $result.Explanation = "Unrecognized error pattern"
+    $result.SuggestedAction = "Review the full error message and stack trace for more context"
+
+    foreach ($p in $patterns) {
+        if ($ErrorText -match $p.Pattern) {
+            $result.Category = $p.Category
+
+            if ($p.Explanation -is [ScriptBlock]) {
+                $result.Explanation = & $p.Explanation $matches
+            } else {
+                $result.Explanation = $p.Explanation
+            }
+
+            if ($p.SuggestedAction -is [ScriptBlock]) {
+                $result.SuggestedAction = & $p.SuggestedAction $matches
+            } else {
+                $result.SuggestedAction = $p.SuggestedAction
+            }
+            break
+        }
     }
 
     return "$($result.Category): $($result.Explanation)`nLikelyFile: $($result.LikelyFile)`nSuggestedAction: $($result.SuggestedAction)"
