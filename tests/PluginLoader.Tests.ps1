@@ -196,6 +196,19 @@ $PluginDefinition = @{
             $result | Should -Be "Invoked args in /root"
         }
 
+        It 'Passes arguments correctly' {
+             $Global:LoadedPlugins += @{
+                Name = "ArgsPlugin"
+                Handler = {
+                    param($arguments, $repo)
+                    return "$arguments:$repo"
+                }
+            }
+
+            $result = Invoke-Plugin -Name "ArgsPlugin" -Arguments "myargs" -RepoRoot "myrepo"
+            $result | Should -Be "myargs:myrepo"
+        }
+
         It 'Returns null if plugin not found' {
             Mock Write-Warning
             $result = Invoke-Plugin -Name "NonExistent" -Arguments "" -RepoRoot ""
