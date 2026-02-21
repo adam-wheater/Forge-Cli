@@ -3,6 +3,45 @@ BeforeAll {
 }
 
 # --- E40: Pester tests for Score-File relevance scoring ---
+Describe 'Find-SourceFiles' {
+    It 'Returns files matching filter in a git repo' {
+        Mock -CommandName git -MockWith {
+            'src/File1.cs'
+            'src/File2.cs'
+        }
+        Mock -CommandName Test-Path -MockWith { $true }
+
+        $result = Find-SourceFiles -RepoRoot '/repo' -Filter '*.cs'
+        $result.Count | Should -Be 2
+        $result | Should -Contain (Join-Path '/repo' 'src/File1.cs')
+        $result | Should -Contain (Join-Path '/repo' 'src/File2.cs')
+    }
+
+    It 'Falls back to Get-ChildItem when not a git repo' {
+        # Force git to fail
+        Mock -CommandName git -MockWith { throw "not a git repo" }
+        Mock -CommandName Test-Path -MockWith { $true }
+        # Mock Get-ChildItem to return some files
+        Mock -CommandName Get-ChildItem -MockWith {
+            @{ FullName = '/repo/src/File1.cs' }
+            @{ FullName = '/repo/src/File2.cs' }
+            @{ FullName = '/repo/bin/Bad.cs' }
+        }
+
+        $result = Find-SourceFiles -RepoRoot '/repo' -Filter '*.cs'
+        $result.Count | Should -Be 2
+        $result | Should -Contain '/repo/src/File1.cs'
+        $result | Should -Contain '/repo/src/File2.cs'
+        $result | Should -Not -Contain '/repo/bin/Bad.cs'
+    }
+
+    It 'Returns empty array if RepoRoot does not exist' {
+        Mock -CommandName Test-Path -MockWith { $false }
+        $result = Find-SourceFiles -RepoRoot '/nonexistent'
+        $result | Should -BeEmpty
+    }
+}
+
 Describe 'Score-File' {
     BeforeEach {
         # Reset relevance tracker state so Get-RelevanceScore returns 0

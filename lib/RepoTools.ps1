@@ -16,6 +16,33 @@ function Score-File {
     $score
 }
 
+function Find-SourceFiles {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [string]$Filter = '*.cs'
+    )
+
+    if (-not (Test-Path $RepoRoot -PathType Container)) {
+        return @()
+    }
+
+    $files = @()
+    try {
+        $files = @(git -C $RepoRoot ls-files $Filter 2>$null | ForEach-Object { Join-Path $RepoRoot $_ })
+    } catch {
+        # Fallback if not a git repo or git fails
+    }
+
+    if ($files.Count -eq 0) {
+        $files = @(Get-ChildItem $RepoRoot -Filter $Filter -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '[\\/](obj|bin|\.git|node_modules)[\\/]' } |
+            ForEach-Object { $_.FullName })
+    }
+
+    return $files
+}
+
 function Search-Files {
     param ([Parameter(Mandatory)]$Pattern)
 

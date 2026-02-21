@@ -3,6 +3,8 @@
 # Architecture: Each public function tries the Roslyn C# tool (tools/RoslynAnalyser/)
 # first. If the tool isn't built or fails, falls back to the regex implementation.
 
+. "$PSScriptRoot/RepoTools.ps1"
+
 # ── Roslyn Bridge ──
 
 function Invoke-RoslynTool {
@@ -321,13 +323,7 @@ function Get-CSharpInterfaceRegex {
 
     if (-not (Test-Path $RepoRoot)) { return $null }
 
-    $csFiles = @()
-    try {
-        $csFiles = @(git -C $RepoRoot ls-files '*.cs' 2>$null | ForEach-Object { Join-Path $RepoRoot $_ })
-    } catch {}
-    if ($csFiles.Count -eq 0) {
-        $csFiles = @(Get-ChildItem $RepoRoot -Filter '*.cs' -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
-    }
+    $csFiles = Find-SourceFiles -RepoRoot $RepoRoot -Filter '*.cs'
 
     foreach ($file in $csFiles) {
         if (-not (Test-Path $file)) { continue }
