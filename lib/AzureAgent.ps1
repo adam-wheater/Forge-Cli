@@ -58,8 +58,8 @@ function Invoke-WithRetry {
                         $respBody = $reader.ReadToEnd()
                         $reader.Close()
 
-                        # Sanitize sensitive data
-                        $safeBody = $respBody -replace '(?i)(api-key|password|secret|token)\s*[:=]\s*\S+', '$1=***'
+                        # Sanitize sensitive data - improved regex to handle JSON and quoted values
+                        $safeBody = $respBody -replace '(?i)(["'']?(?:api-key|password|secret|token)["'']?\s*[:=]\s*)(["'']?)([^"''\s,]+)(["'']?)', '$1$2***$4'
                         if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
 
                         $errMsg = "$errMsg -- ResponseBody: $safeBody"
