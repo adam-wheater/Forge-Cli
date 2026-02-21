@@ -77,3 +77,30 @@ Describe 'Run-Agent' {
         }
     }
 }
+
+Describe 'Invoke-ExplainError' {
+    It 'Extracts LikelyFile from error message' {
+        $result = Invoke-ExplainError -ErrorText "Error at MyFile.cs:10"
+        $result | Should -Match 'LikelyFile: MyFile.cs'
+    }
+
+    It 'Correctly identifies <Category> error' -TestCases @(
+        @{ ErrorText = "error CS0246: The type or namespace name 'Foo' could not be found"; Category = "MissingType"; Explanation = "Missing using directive or assembly reference for 'Foo'" }
+        @{ ErrorText = "System.NullReferenceException: Object reference not set to an instance of an object."; Category = "NullReference"; Explanation = "Object is null. Check mock setup returns non-null values." }
+        @{ ErrorText = "System.InvalidOperationException: Operation is not valid due to the current state of the object."; Category = "InvalidOperation"; Explanation = "Check service registration in DI container." }
+        @{ ErrorText = "System.NotImplementedException: The method or operation is not implemented."; Category = "NotImplemented"; Explanation = "Method has throw new NotImplementedException() — needs implementation." }
+        @{ ErrorText = "error CS1002: ; expected"; Category = "SyntaxError"; Explanation = "Missing semicolon in C# code" }
+        @{ ErrorText = "error CS1513: } expected"; Category = "SyntaxError"; Explanation = "Expected closing brace '}' in C# code" }
+        @{ ErrorText = "error CS0103: The name 'bar' does not exist in the current context"; Category = "UndefinedName"; Explanation = "The name 'bar' does not exist in the current context" }
+        @{ ErrorText = "error CS0029: Cannot implicitly convert type 'int' to 'string'"; Category = "TypeMismatch"; Explanation = "Cannot implicitly convert between types" }
+        @{ ErrorText = "error CS0115: 'MyClass.MyMethod()': no suitable method found to override"; Category = "OverrideError"; Explanation = "No suitable method found to override" }
+        @{ ErrorText = "Some random unknown error"; Category = "General"; Explanation = "Unrecognized error pattern" }
+    ) {
+        param($ErrorText, $Category, $Explanation)
+        $result = Invoke-ExplainError -ErrorText $ErrorText
+        $result | Should -Match "$Category: "
+        if ($Explanation) {
+            $result | Should -Match [regex]::Escape($Explanation)
+        }
+    }
+}
