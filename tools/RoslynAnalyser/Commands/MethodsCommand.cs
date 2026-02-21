@@ -12,9 +12,15 @@ public static class MethodsCommand
         if (!File.Exists(filePath)) return results;
 
         var code = File.ReadAllText(filePath);
-        var lines = code.Split('\n');
         var tree = CSharpSyntaxTree.ParseText(code);
+        return Run(tree);
+    }
+
+    public static List<MethodAnalysisResult> Run(SyntaxTree tree)
+    {
+        var results = new List<MethodAnalysisResult>();
         var root = tree.GetCompilationUnitRoot();
+        var text = tree.GetText();
 
         foreach (var method in root.DescendantNodes().OfType<MethodDeclarationSyntax>())
         {
@@ -51,7 +57,8 @@ public static class MethodsCommand
             foreach (var throwStmt in method.DescendantNodes().OfType<ThrowStatementSyntax>())
             {
                 var throwLine = throwStmt.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
-                var rawLine = throwLine <= lines.Length ? lines[throwLine - 1].Trim() : "";
+                var lineIndex = throwLine - 1;
+                var rawLine = lineIndex < text.Lines.Count ? text.Lines[lineIndex].ToString().Trim() : "";
 
                 if (throwStmt.Expression == null)
                 {
@@ -88,7 +95,8 @@ public static class MethodsCommand
             foreach (var throwExpr in method.DescendantNodes().OfType<ThrowExpressionSyntax>())
             {
                 var throwLine = throwExpr.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
-                var rawLine = throwLine <= lines.Length ? lines[throwLine - 1].Trim() : "";
+                var lineIndex = throwLine - 1;
+                var rawLine = lineIndex < text.Lines.Count ? text.Lines[lineIndex].ToString().Trim() : "";
 
                 if (throwExpr.Expression is ObjectCreationExpressionSyntax creation)
                 {
