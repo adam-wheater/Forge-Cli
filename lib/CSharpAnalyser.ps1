@@ -469,7 +469,7 @@ function Get-DIRegistrationsRegex {
     if ($targetFiles.Count -eq 0) { return $result }
 
     foreach ($file in $targetFiles) {
-        $content = Get-Content $file -ErrorAction SilentlyContinue
+        $content = Get-Content $file -ReadCount 0 -ErrorAction SilentlyContinue
         if (-not $content) { continue }
 
         for ($i = 0; $i -lt $content.Count; $i++) {
