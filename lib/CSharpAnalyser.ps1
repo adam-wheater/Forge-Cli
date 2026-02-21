@@ -3,6 +3,8 @@
 # Architecture: Each public function tries the Roslyn C# tool (tools/RoslynAnalyser/)
 # first. If the tool isn't built or fails, falls back to the regex implementation.
 
+. "$PSScriptRoot/RepoTools.ps1"
+
 # ── Roslyn Bridge ──
 
 function Invoke-RoslynTool {
@@ -127,6 +129,7 @@ function Get-CSharpSymbolsRegex {
         [Parameter(Mandatory)][string]$Path
     )
 
+    $classList = [System.Collections.Generic.List[PSObject]]::new()
     $result = @{
         Namespace    = ""
         Classes      = @()
@@ -156,21 +159,20 @@ function Get-CSharpSymbolsRegex {
 
         # Parse base class and interfaces from inheritance clause
         $baseClass = ""
-        $interfacesList = [System.Collections.Generic.List[string]]::new()
+        $interfaceList = [System.Collections.Generic.List[string]]::new()
         if ($cm.Groups[6].Value) {
             $inheritParts = $cm.Groups[6].Value -split ','
             foreach ($rawPart in $inheritParts) {
                 $part = $rawPart.Trim()
                 if ($part -match '^I[A-Z]') {
-                    $interfacesList.Add($part)
+                    $interfaceList.Add($part)
                 } elseif (-not $baseClass) {
                     $baseClass = $part
                 } else {
-                    $interfacesList.Add($part)
+                    $interfaceList.Add($part)
                 }
             }
         }
-        $interfaces = $interfacesList.ToArray()
 
         # Find class line number
         $classLineNum = 0
@@ -181,17 +183,21 @@ function Get-CSharpSymbolsRegex {
             }
         }
 
+        $ctorList = [System.Collections.Generic.List[PSObject]]::new()
+        $methodList = [System.Collections.Generic.List[PSObject]]::new()
+        $propList = [System.Collections.Generic.List[PSObject]]::new()
+
         $classInfo = @{
             Name         = $className
             Visibility   = $visibility
             Static       = $isStatic
             Abstract     = $isAbstract
             BaseClass    = $baseClass
-            Interfaces   = $interfaces
+            Interfaces   = $interfaceList.ToArray()
             Line         = $classLineNum
-            Methods      = @()
-            Properties   = @()
-            Constructors = @()
+            Methods      = @() # Will be set at end
+            Properties   = @() # Will be set at end
+            Constructors = @() # Will be set at end
         }
 
         # Extract constructors for this class
@@ -214,23 +220,23 @@ function Get-CSharpSymbolsRegex {
                 }
             }
 
-            $ctorParams = @()
+            $ctorParamList = [System.Collections.Generic.List[PSObject]]::new()
             $paramStr = $ctm.Groups[2].Value.Trim()
             if ($paramStr) {
                 $parts = $paramStr -split ','
                 foreach ($p in $parts) {
                     $tokens = $p.Trim() -split '\s+'
                     if ($tokens.Count -ge 2) {
-                        $ctorParams += @{ Type = $tokens[0..($tokens.Count - 2)] -join ' '; Name = $tokens[-1] }
+                        $ctorParamList.Add(@{ Type = $tokens[0..($tokens.Count - 2)] -join ' '; Name = $tokens[-1] })
                     }
                 }
             }
 
-            $classInfo.Constructors += @{
+            $ctorList.Add(@{
                 Visibility = $ctm.Groups[1].Value
-                Parameters = $ctorParams
+                Parameters = $ctorParamList.ToArray()
                 Line       = $ctorLineNum
-            }
+            })
         }
 
         # Extract methods
@@ -254,27 +260,27 @@ function Get-CSharpSymbolsRegex {
                 }
             }
 
-            $methodParams = @()
+            $methodParamList = [System.Collections.Generic.List[PSObject]]::new()
             $paramStr = $mm.Groups[6].Value.Trim()
             if ($paramStr) {
                 $parts = $paramStr -split ','
                 foreach ($p in $parts) {
                     $tokens = $p.Trim() -split '\s+'
                     if ($tokens.Count -ge 2) {
-                        $methodParams += @{ Type = $tokens[0..($tokens.Count - 2)] -join ' '; Name = $tokens[-1] }
+                        $methodParamList.Add(@{ Type = $tokens[0..($tokens.Count - 2)] -join ' '; Name = $tokens[-1] })
                     }
                 }
             }
 
-            $classInfo.Methods += @{
+            $methodList.Add(@{
                 Name       = $methodName
                 ReturnType = $returnType
                 Visibility = $mm.Groups[1].Value
                 Static     = $isMethodStatic
                 Async      = $isAsync
-                Parameters = $methodParams
+                Parameters = $methodParamList.ToArray()
                 Line       = $methodLineNum
-            }
+            })
         }
 
         # Extract properties
@@ -286,7 +292,7 @@ function Get-CSharpSymbolsRegex {
 
             if ($propType -match '\b(class|namespace|void|return)\b') { continue }
             $isMethod = $false
-            foreach ($m in $classInfo.Methods) {
+            foreach ($m in $methodList) {
                 if ($m.Name -eq $propName) { $isMethod = $true; break }
             }
             if ($isMethod) { continue }
@@ -299,18 +305,23 @@ function Get-CSharpSymbolsRegex {
                 }
             }
 
-            $classInfo.Properties += @{
+            $propList.Add(@{
                 Name       = $propName
                 Type       = $propType
                 Visibility = $pm.Groups[1].Value
                 Static     = [bool]$pm.Groups[2].Value
                 Line       = $propLineNum
-            }
+            })
         }
 
-        $result.Classes += $classInfo
+        $classInfo.Methods = $methodList.ToArray()
+        $classInfo.Properties = $propList.ToArray()
+        $classInfo.Constructors = $ctorList.ToArray()
+
+        $classList.Add($classInfo)
     }
 
+    $result.Classes = $classList.ToArray()
     return $result
 }
 
@@ -323,13 +334,7 @@ function Get-CSharpInterfaceRegex {
 
     if (-not (Test-Path $RepoRoot)) { return $null }
 
-    $csFiles = @()
-    try {
-        $csFiles = @(git -C $RepoRoot ls-files '*.cs' 2>$null | ForEach-Object { Join-Path $RepoRoot $_ })
-    } catch {}
-    if ($csFiles.Count -eq 0) {
-        $csFiles = @(Get-ChildItem $RepoRoot -Filter '*.cs' -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
-    }
+    $csFiles = Find-SourceFiles -RepoRoot $RepoRoot -Filter '*.cs'
 
     foreach ($file in $csFiles) {
         if (-not (Test-Path $file)) { continue }
@@ -339,7 +344,7 @@ function Get-CSharpInterfaceRegex {
         $interfacePattern = '(public|internal)?\s*interface\s+' + [regex]::Escape($InterfaceName) + '(?:\s*<[^>]+>)?\s*(?::\s*[^{]+)?\s*\{'
         if ($content -notmatch $interfacePattern) { continue }
 
-        $methods = @()
+        $methodList = [System.Collections.Generic.List[PSObject]]::new()
 
         $startIdx = $content.IndexOf($matches[0])
         $braceStart = $content.IndexOf('{', $startIdx)
@@ -362,22 +367,22 @@ function Get-CSharpInterfaceRegex {
             $methodName = $mm.Groups[2].Value
             $paramStr = $mm.Groups[3].Value.Trim()
 
-            $methodParams = @()
+            $methodParamList = [System.Collections.Generic.List[PSObject]]::new()
             if ($paramStr) {
                 $parts = $paramStr -split ','
                 foreach ($p in $parts) {
                     $tokens = $p.Trim() -split '\s+'
                     if ($tokens.Count -ge 2) {
-                        $methodParams += @{ Type = $tokens[0..($tokens.Count - 2)] -join ' '; Name = $tokens[-1] }
+                        $methodParamList.Add(@{ Type = $tokens[0..($tokens.Count - 2)] -join ' '; Name = $tokens[-1] })
                     }
                 }
             }
 
-            $methods += @{
+            $methodList.Add(@{
                 Name       = $methodName
                 ReturnType = $returnType
-                Parameters = $methodParams
-            }
+                Parameters = $methodParamList.ToArray()
+            })
         }
 
         $relativePath = $file
@@ -388,7 +393,7 @@ function Get-CSharpInterfaceRegex {
         return @{
             Name    = $InterfaceName
             Path    = $relativePath
-            Methods = $methods
+            Methods = $methodList.ToArray()
         }
     }
 
@@ -401,6 +406,8 @@ function Get-NuGetPackagesRegex {
         [Parameter(Mandatory)][string]$ProjectPath
     )
 
+    $packageList = [System.Collections.Generic.List[PSObject]]::new()
+    $coverageToolList = [System.Collections.Generic.List[string]]::new()
     $result = @{
         Packages         = @()
         TestFramework    = ""
@@ -417,7 +424,7 @@ function Get-NuGetPackagesRegex {
     $pkgPattern = '<PackageReference\s+Include="([^"]+)"\s+Version="([^"]*)"'
     $pkgMatches = [regex]::Matches($content, $pkgPattern)
     foreach ($pm in $pkgMatches) {
-        $result.Packages += @{ Name = $pm.Groups[1].Value; Version = $pm.Groups[2].Value }
+        $packageList.Add(@{ Name = $pm.Groups[1].Value; Version = $pm.Groups[2].Value })
     }
 
     $pkgAltPattern = '<PackageReference\s+Include="([^"]+)"\s*/?>'
@@ -425,14 +432,15 @@ function Get-NuGetPackagesRegex {
     foreach ($pm in $pkgAltMatches) {
         $pkgName = $pm.Groups[1].Value
         $alreadyCaptured = $false
-        foreach ($existing in $result.Packages) {
+        foreach ($existing in $packageList) {
             if ($existing.Name -eq $pkgName) { $alreadyCaptured = $true; break }
         }
         if (-not $alreadyCaptured) {
-            $result.Packages += @{ Name = $pkgName; Version = "" }
+            $packageList.Add(@{ Name = $pkgName; Version = "" })
         }
     }
 
+    $result.Packages = $packageList.ToArray()
     $packageNames = @($result.Packages | ForEach-Object { $_.Name.ToLower() })
     if ($packageNames -match 'xunit') { $result.TestFramework = "xunit" }
     elseif ($packageNames -match 'nunit') { $result.TestFramework = "nunit" }
@@ -445,8 +453,9 @@ function Get-NuGetPackagesRegex {
     if ($packageNames -match 'fluentassertions') { $result.AssertionLibrary = "fluentassertions" }
     elseif ($packageNames -match 'shouldly') { $result.AssertionLibrary = "shouldly" }
 
-    if ($packageNames -match 'coverlet\.collector') { $result.CoverageTools += "coverlet" }
+    if ($packageNames -match 'coverlet\.collector') { $coverageToolList.Add("coverlet") }
 
+    $result.CoverageTools = $coverageToolList.ToArray()
     return $result
 }
 
@@ -460,18 +469,19 @@ function Get-DIRegistrationsRegex {
 
     if (-not (Test-Path $RepoRoot)) { return $result }
 
-    $targetFiles = @()
+    $targetFiles = [System.Collections.Generic.List[string]]::new()
     $candidates = @("Startup.cs", "Program.cs")
     foreach ($name in $candidates) {
         $found = Get-ChildItem $RepoRoot -Filter $name -Recurse -Depth 5 -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -notmatch '[\\/](obj|bin|node_modules|\.git)[\\/]' }
-        if ($found) { $targetFiles += @($found | ForEach-Object { $_.FullName }) }
+        if ($found) { $targetFiles.AddRange(@($found | ForEach-Object { $_.FullName })) }
     }
 
     if ($targetFiles.Count -eq 0) { return $result }
 
+    $regList = [System.Collections.Generic.List[PSObject]]::new()
     foreach ($file in $targetFiles) {
-        $content = Get-Content $file -ErrorAction SilentlyContinue
+        $content = Get-Content $file -ReadCount 0 -ErrorAction SilentlyContinue
         if (-not $content) { continue }
 
         for ($i = 0; $i -lt $content.Count; $i++) {
@@ -480,29 +490,30 @@ function Get-DIRegistrationsRegex {
 
             $genericPattern = '(?:services|builder\.Services)\.Add(Scoped|Transient|Singleton)<([^,>]+),\s*([^>]+)>\s*\('
             if ($line -match $genericPattern) {
-                $result.Registrations += @{ Interface = $matches[2].Trim(); Implementation = $matches[3].Trim(); Lifetime = $matches[1]; Line = $lineNum }
+                $regList.Add(@{ Interface = $matches[2].Trim(); Implementation = $matches[3].Trim(); Lifetime = $matches[1]; Line = $lineNum })
                 continue
             }
 
             $typeofPattern = '(?:services|builder\.Services)\.Add(Scoped|Transient|Singleton)\s*\(\s*typeof\(([^)]+)\)\s*,\s*typeof\(([^)]+)\)\s*\)'
             if ($line -match $typeofPattern) {
-                $result.Registrations += @{ Interface = $matches[2].Trim(); Implementation = $matches[3].Trim(); Lifetime = $matches[1]; Line = $lineNum }
+                $regList.Add(@{ Interface = $matches[2].Trim(); Implementation = $matches[3].Trim(); Lifetime = $matches[1]; Line = $lineNum })
                 continue
             }
 
             $dbContextPattern = '(?:services|builder\.Services)\.AddDbContext<([^>]+)>\s*\('
             if ($line -match $dbContextPattern) {
-                $result.Registrations += @{ Interface = $matches[1].Trim(); Implementation = $matches[1].Trim(); Lifetime = "Scoped"; Line = $lineNum }
+                $regList.Add(@{ Interface = $matches[1].Trim(); Implementation = $matches[1].Trim(); Lifetime = "Scoped"; Line = $lineNum })
                 continue
             }
 
             $httpClientPattern = '(?:services|builder\.Services)\.AddHttpClient<([^,>]+),\s*([^>]+)>\s*\('
             if ($line -match $httpClientPattern) {
-                $result.Registrations += @{ Interface = $matches[1].Trim(); Implementation = $matches[2].Trim(); Lifetime = "Transient"; Line = $lineNum }
+                $regList.Add(@{ Interface = $matches[1].Trim(); Implementation = $matches[2].Trim(); Lifetime = "Transient"; Line = $lineNum })
                 continue
             }
         }
     }
 
+    $result.Registrations = $regList.ToArray()
     return $result
 }

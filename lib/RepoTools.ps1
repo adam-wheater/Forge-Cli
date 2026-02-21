@@ -4,16 +4,46 @@ function Score-File {
     param ([Parameter(Mandatory)][string]$Path)
 
     $score = 0
-    if ($Path -match 'Test|Tests') { $score += 50 }
-    if ($Path -match 'Service|Controller|Manager|Repository|Repo') { $score += 15 }
-    if ($Path -match '\.cs$') { $score += 5 }
-    if ($Path -match '\.ps1$') { $score += 5 }
-    if ($Path -match '\.Tests\.ps1$') { $score += 50 }
-    if ($Path -match 'Module|Orchestrator|Agent') { $score += 15 }
-    if ($Path -match '\.system\.txt$') { $score += 10 }
-    if ($Path -match 'Program|Startup') { $score -= 10 }
+    # Optimisation: Use switch -Regex for single-pass matching
+    switch -Regex ($Path) {
+        'Test|Tests' { $score += 50 }
+        'Service|Controller|Manager|Repository|Repo' { $score += 15 }
+        '\.cs$' { $score += 5 }
+        '\.ps1$' { $score += 5 }
+        '\.Tests\.ps1$' { $score += 50 }
+        'Module|Orchestrator|Agent' { $score += 15 }
+        '\.system\.txt$' { $score += 10 }
+        'Program|Startup' { $score -= 10 }
+    }
     $score -= (Get-RelevanceScore $Path)
     $score
+}
+
+function Find-SourceFiles {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [string]$Filter = '*.cs'
+    )
+
+    if (-not (Test-Path $RepoRoot -PathType Container)) {
+        return @()
+    }
+
+    $files = @()
+    try {
+        $files = @(git -C $RepoRoot ls-files $Filter 2>$null | ForEach-Object { Join-Path $RepoRoot $_ })
+    } catch {
+        # Fallback if not a git repo or git fails
+    }
+
+    if ($files.Count -eq 0) {
+        $files = @(Get-ChildItem $RepoRoot -Filter $Filter -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '[\\/](obj|bin|\.git|node_modules)[\\/]' } |
+            ForEach-Object { $_.FullName })
+    }
+
+    return $files
 }
 
 function Search-Files {
@@ -23,11 +53,25 @@ function Search-Files {
         return ($Pattern | ForEach-Object { Search-Files $_ }) | Select-Object -Unique
     }
 
-    git ls-files |
-        Where-Object { $_ -match $Pattern } |
-        ForEach-Object {
-            [PSCustomObject]@{ Path = $_; Score = (Score-File $_) }
-        } |
+    # Optimisation: Pre-compile regex and avoid pipeline overhead
+    try {
+        $regex = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    } catch {
+        Write-Warning "Invalid regex pattern: $Pattern"
+        return @()
+    }
+
+    $files = git ls-files
+    $results = [System.Collections.Generic.List[PSCustomObject]]::new()
+
+    foreach ($file in $files) {
+        if ($regex.IsMatch($file)) {
+            $score = Score-File $file
+            $results.Add([PSCustomObject]@{ Path = $file; Score = $score })
+        }
+    }
+
+    $results |
         Sort-Object Score -Descending |
         Select-Object -First 25 |
         ForEach-Object { $_.Path }
@@ -133,8 +177,35 @@ function Open-File {
     param ([Parameter(Mandatory)][string]$Path, [int]$MaxLines = 400)
 
     if (-not (Test-Path $Path)) { return "FILE_NOT_FOUND" }
-    Mark-Relevant $Path
-    (Get-Content $Path -TotalCount $MaxLines) -join "`n"
+
+    # Validate that the resolved path is within the repository root
+    try {
+        $repoRoot = (Resolve-Path "$PSScriptRoot/.." -ErrorAction Stop).Path
+        # Normalize repo root to have consistent separators
+        $repoRoot = $repoRoot.Replace('\', '/')
+
+        $resolvedPaths = Convert-Path -Path $Path -ErrorAction Stop
+
+        foreach ($resPath in $resolvedPaths) {
+            $p = $resPath.Replace('\', '/')
+
+            # Ensure the path starts with the repo root directory
+            # append / to repoRoot to ensure we don't match partial directory names
+            $rootCheck = $repoRoot
+            if (-not $rootCheck.EndsWith('/')) {
+                $rootCheck += '/'
+            }
+
+            if (-not $p.StartsWith($rootCheck) -and $p -ne $repoRoot) {
+                return "ACCESS_DENIED"
+            }
+        }
+
+        Mark-Relevant $Path
+        (Get-Content -Path $resolvedPaths -TotalCount $MaxLines) -join "`n"
+    } catch {
+        return "FILE_NOT_FOUND"
+    }
 }
 
 function Show-Diff {

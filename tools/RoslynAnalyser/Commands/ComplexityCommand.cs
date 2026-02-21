@@ -15,7 +15,7 @@ public static class ComplexityCommand
         var root = tree.GetCompilationUnitRoot();
 
         // Get method analysis for the file
-        var methodAnalysis = MethodsCommand.Run(filePath);
+        var methodAnalysis = MethodsCommand.Run(tree);
 
         foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
         {
