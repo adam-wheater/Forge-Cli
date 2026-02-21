@@ -552,152 +552,30 @@ function Run-Agent {
             throw "Forbidden tool $($json.tool) for role $Role"
         }
 
-        switch ($json.tool) {
-            "search_files" {
-                if ($searches -ge $MAX_SEARCHES) { return 'NO_CHANGES' }
-                $searches++
-                $results = Search-Files $json.pattern
-                Write-DebugLog "$Role-search" ($results -join "`n")
-                $context += "`nSEARCH_RESULTS:`n$($results -join "`n")"
-            }
-            "open_file" {
-                if ($opens -ge $MAX_OPENS) { return 'NO_CHANGES' }
-                $opens++
-                $file = Open-File $json.path
-                $imports = Get-Imports $json.path
-                $ctors = Get-ConstructorDependencies $json.path
-                Write-DebugLog "$Role-open" $file
-                $context += "`nFILE $($json.path):`n$file"
-                if ($imports) { $context += "`nIMPORTS:`n$($imports -join "`n")" }
-                if ($ctors) { $context += "`nCONSTRUCTOR_DEPENDENCIES:`n$($ctors -join "`n")" }
-            }
-            "show_diff" {
-                $diff = Show-Diff
-                Write-DebugLog "$Role-diff" $diff
-                $context += "`nDIFF:`n$diff"
-            }
-            "write_file" {
-                if ($writes -ge $MAX_WRITES) { return 'NO_CHANGES' }
-                $writes++
-                $repoRoot = if ($json.repo_root) { $json.repo_root } else { (Get-Location).Path }
-                $result = Invoke-WriteFile -Path $json.path -Content $json.content -RepoRoot $repoRoot
-                Write-DebugLog "$Role-write" $result
-                $context += "`nWRITE_RESULT:`n$result"
-            }
-            "run_tests" {
-                if ($testRuns -ge $MAX_TEST_RUNS) { return 'NO_CHANGES' }
-                $testRuns++
-                $repoRoot = if ($json.repo_root) { $json.repo_root } else { (Get-Location).Path }
-                $result = Invoke-RunTests -RepoRoot $repoRoot -Filter $json.filter
-                Write-DebugLog "$Role-tests" $result
-                $context += "`nTEST_RESULTS:`n$result"
-            }
-            "read_test_output" {
-                $repoRoot = if ($json.repo_root) { $json.repo_root } else { (Get-Location).Path }
-                $result = Invoke-ReadTestOutput -RepoRoot $repoRoot
-                Write-DebugLog "$Role-test-output" $result
-                $context += "`nTEST_OUTPUT:`n$result"
-            }
-            "get_coverage" {
-                if ($coverageRuns -ge $MAX_COVERAGE_RUNS) { return 'NO_CHANGES' }
-                $coverageRuns++
-                $repoRoot = if ($json.repo_root) { $json.repo_root } else { (Get-Location).Path }
-                $result = Invoke-GetCoverage -RepoRoot $repoRoot
-                Write-DebugLog "$Role-coverage" $result
-                $context += "`nCOVERAGE:`n$result"
-            }
-            "explain_error" {
-                $result = Invoke-ExplainError -ErrorText $json.error_text
-                Write-DebugLog "$Role-explain" $result
-                $context += "`nERROR_EXPLANATION:`n$result"
-            }
-            "list_tests" {
-                $repoRoot = if ($json.repo_root) { $json.repo_root } else { (Get-Location).Path }
-                $result = Invoke-ListTests -RepoRoot $repoRoot
-                Write-DebugLog "$Role-list-tests" $result
-                $context += "`nTEST_LIST:`n$result"
-            }
-            "get_symbols" {
-                $result = Get-CSharpSymbols -Path $json.path
-                $formatted = "Namespace: $($result.Namespace)`n"
-                foreach ($cls in $result.Classes) {
-                    $formatted += "Class: $($cls.Name) [$($cls.Visibility)] Line:$($cls.Line)`n"
-                    foreach ($m in $cls.Methods) {
-                        $params = ($m.Parameters | ForEach-Object { "$($_.Type) $($_.Name)" }) -join ", "
-                        $formatted += "  Method: $($m.ReturnType) $($m.Name)($params) Line:$($m.Line)`n"
-                    }
-                    foreach ($p in $cls.Properties) {
-                        $formatted += "  Prop: $($p.Type) $($p.Name) Line:$($p.Line)`n"
-                    }
-                    foreach ($c in $cls.Constructors) {
-                        $params = ($c.Parameters | ForEach-Object { "$($_.Type) $($_.Name)" }) -join ", "
-                        $formatted += "  Ctor: ($params) Line:$($c.Line)`n"
-                    }
-                }
-                Write-DebugLog "$Role-symbols" $formatted
-                $context += "`nSYMBOLS:`n$formatted"
-            }
-            "get_interface" {
-                $repoRoot = if ($json.repo_root) { $json.repo_root } else { (Get-Location).Path }
-                $result = Get-CSharpInterface -InterfaceName $json.name -RepoRoot $repoRoot
-                if ($result) {
-                    $formatted = "Interface: $($result.Name) in $($result.Path)`n"
-                    foreach ($m in $result.Methods) {
-                        $params = ($m.Parameters | ForEach-Object { "$($_.Type) $($_.Name)" }) -join ", "
-                        $formatted += "  $($m.ReturnType) $($m.Name)($params)`n"
-                    }
-                } else {
-                    $formatted = "INTERFACE_NOT_FOUND: $($json.name)"
-                }
-                Write-DebugLog "$Role-interface" $formatted
-                $context += "`nINTERFACE:`n$formatted"
-            }
-            "get_nuget_info" {
-                $result = Get-NuGetPackages -ProjectPath $json.path
-                $formatted = "TestFramework: $($result.TestFramework), MockLibrary: $($result.MockLibrary), AssertionLibrary: $($result.AssertionLibrary)`n"
-                $formatted += "Packages: $(($result.Packages | ForEach-Object { "$($_.Name)@$($_.Version)" }) -join ', ')`n"
-                if ($result.CoverageTools.Count -gt 0) {
-                    $formatted += "CoverageTools: $($result.CoverageTools -join ', ')"
-                }
-                Write-DebugLog "$Role-nuget" $formatted
-                $context += "`nNUGET_INFO:`n$formatted"
-            }
-            "get_di_registrations" {
-                $repoRoot = if ($json.repo_root) { $json.repo_root } else { (Get-Location).Path }
-                $result = Get-DIRegistrations -RepoRoot $repoRoot
-                $formatted = ""
-                foreach ($reg in $result.Registrations) {
-                    $formatted += "$($reg.Lifetime): $($reg.Interface) -> $($reg.Implementation) (line $($reg.Line))`n"
-                }
-                if (-not $formatted) { $formatted = "NO_DI_REGISTRATIONS_FOUND" }
-                Write-DebugLog "$Role-di" $formatted
-                $context += "`nDI_REGISTRATIONS:`n$formatted"
-            }
-            "semantic_search" {
-                # G03: Semantic search tool — prefer Invoke-SemanticSearch, fallback to Search-Embeddings
-                $query = $json.query
-                $topK = if ($json.top_k) { [int]$json.top_k } else { 10 }
-                if (Get-Command Invoke-SemanticSearch -ErrorAction SilentlyContinue) {
-                    try {
-                        $result = Invoke-SemanticSearch -Query $query -TopK $topK
-                        $formatted = $result
-                    } catch {
-                        $formatted = "SEMANTIC_SEARCH_FAILED: $($_.Exception.Message)"
-                    }
-                } elseif (Get-Command Search-Embeddings -ErrorAction SilentlyContinue) {
-                    $result = Search-Embeddings -Query $query
-                    $formatted = ($result | ForEach-Object { "$($_.Path): $($_.Score)" }) -join "`n"
-                } else {
-                    $formatted = "SEMANTIC_SEARCH_NOT_AVAILABLE: Embeddings module not loaded"
-                }
-                Write-DebugLog "$Role-semantic" $formatted
-                $context += "`nSEMANTIC_RESULTS:`n$formatted"
-            }
-            default {
-                Write-DebugLog "$Role-unknown-tool" "Unknown tool: $($json.tool)"
-                return (New-AgentError -Type "unknown_tool" -Role $Role -Message "Unknown tool: $($json.tool)")
-            }
+        # Build arguments hashtable from item properties (excluding 'tool')
+        $toolArgs = @{}
+        foreach ($p in $json.PSObject.Properties) {
+            if ($p.Name -ne 'tool') { $toolArgs[$p.Name] = $p.Value }
         }
+
+        try {
+            $toolResult = Invoke-ToolCall -Role $Role -ToolName $json.tool -Arguments $toolArgs -Searches ([ref]$searches) -Opens ([ref]$opens) -Writes ([ref]$writes) -TestRuns ([ref]$testRuns) -CoverageRuns ([ref]$coverageRuns)
+        } catch {
+            $toolResult = "TOOL_ERROR: $($_.Exception.Message)"
+        }
+
+        Write-DebugLog "$Role-$($json.tool)" $toolResult
+
+        if ($toolResult -match '^LIMIT_REACHED') {
+            return 'NO_CHANGES'
+        }
+
+        if ($toolResult -match '^UNKNOWN_TOOL:') {
+            Write-DebugLog "$Role-unknown-tool" "Unknown tool: $($json.tool)"
+            return (New-AgentError -Type "unknown_tool" -Role $Role -Message "Unknown tool: $($json.tool)")
+        }
+
+        $context += "`n$toolResult"
     }
 }
 
@@ -950,28 +828,28 @@ function Invoke-ToolCall {
         "write_file" {
             if ($Writes.Value -ge $MAX_WRITES) { return "LIMIT_REACHED: Max writes ($MAX_WRITES) exceeded" }
             $Writes.Value++
-            $repoRoot = (Get-Location).Path
-            return Invoke-WriteFile -Path $Arguments.path -Content $Arguments.content -RepoRoot $repoRoot
+            $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            return "WRITE_RESULT:`n$(Invoke-WriteFile -Path $Arguments.path -Content $Arguments.content -RepoRoot $repoRoot)"
         }
         "run_tests" {
             if ($TestRuns.Value -ge $MAX_TEST_RUNS) { return "LIMIT_REACHED: Max test runs ($MAX_TEST_RUNS) exceeded" }
             $TestRuns.Value++
-            $repoRoot = (Get-Location).Path
-            return Invoke-RunTests -RepoRoot $repoRoot -Filter $Arguments.filter
+            $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            return "TEST_RESULTS:`n$(Invoke-RunTests -RepoRoot $repoRoot -Filter $Arguments.filter)"
         }
         "read_test_output" {
-            $repoRoot = (Get-Location).Path
-            return Invoke-ReadTestOutput -RepoRoot $repoRoot
+            $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            return "TEST_OUTPUT:`n$(Invoke-ReadTestOutput -RepoRoot $repoRoot)"
         }
         "get_coverage" {
             if ($CoverageRuns.Value -ge $MAX_COVERAGE_RUNS) { return "LIMIT_REACHED: Max coverage runs ($MAX_COVERAGE_RUNS) exceeded" }
             $CoverageRuns.Value++
-            $repoRoot = (Get-Location).Path
-            return Invoke-GetCoverage -RepoRoot $repoRoot
+            $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            return "COVERAGE:`n$(Invoke-GetCoverage -RepoRoot $repoRoot)"
         }
         "list_tests" {
-            $repoRoot = (Get-Location).Path
-            return Invoke-ListTests -RepoRoot $repoRoot
+            $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            return "TEST_LIST:`n$(Invoke-ListTests -RepoRoot $repoRoot)"
         }
         "get_symbols" {
             $result = Get-CSharpSymbols -Path $Arguments.path
@@ -993,7 +871,7 @@ function Invoke-ToolCall {
             return "SYMBOLS:`n$formatted"
         }
         "get_interface" {
-            $repoRoot = (Get-Location).Path
+            $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
             $result = Get-CSharpInterface -InterfaceName $Arguments.name -RepoRoot $repoRoot
             if ($result) {
                 $formatted = "Interface: $($result.Name) in $($result.Path)`n"
@@ -1016,7 +894,7 @@ function Invoke-ToolCall {
             return "NUGET_INFO:`n$formatted"
         }
         "get_di_registrations" {
-            $repoRoot = (Get-Location).Path
+            $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
             $result = Get-DIRegistrations -RepoRoot $repoRoot
             $formatted = ""
             foreach ($reg in $result.Registrations) {
@@ -1029,7 +907,7 @@ function Invoke-ToolCall {
             $topK = if ($Arguments.top_k) { [int]$Arguments.top_k } else { 10 }
             if (Get-Command Invoke-SemanticSearch -ErrorAction SilentlyContinue) {
                 try {
-                    return Invoke-SemanticSearch -Query $Arguments.query -TopK $topK
+                    return "SEMANTIC_RESULTS:`n$(Invoke-SemanticSearch -Query $Arguments.query -TopK $topK)"
                 } catch {
                     return "SEMANTIC_SEARCH_FAILED: $($_.Exception.Message)"
                 }
@@ -1041,7 +919,7 @@ function Invoke-ToolCall {
             }
         }
         "explain_error" {
-            return Invoke-ExplainError -ErrorText $Arguments.error_text
+            return "ERROR_EXPLANATION:`n$(Invoke-ExplainError -ErrorText $Arguments.error_text)"
         }
         default {
             return "UNKNOWN_TOOL: $ToolName"
