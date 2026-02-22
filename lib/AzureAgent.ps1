@@ -16,6 +16,55 @@ function Get-AzureAuthHeaders {
     return $headers
 }
 
+function Redact-SensitiveData {
+    param([string]$InputString)
+
+    if ([string]::IsNullOrWhiteSpace($InputString)) { return $InputString }
+
+    # Try parsing as JSON first
+    try {
+        $json = $InputString | ConvertFrom-Json -Depth 10 -ErrorAction Stop
+
+        # Recursive function to walk the object
+        function Walk-Object {
+            param($Obj)
+
+            if ($null -eq $Obj) { return }
+
+            if ($Obj -is [System.Collections.IDictionary]) {
+                foreach ($key in @($Obj.Keys)) {
+                    if ($key -match '(?i)(api-key|password|secret|token$|Authorization)') {
+                        $Obj[$key] = "***"
+                    } else {
+                        Walk-Object -Obj $Obj[$key]
+                    }
+                }
+            } elseif ($Obj -is [System.Management.Automation.PSCustomObject]) {
+                foreach ($prop in $Obj.PSObject.Properties) {
+                    if ($prop.Name -match '(?i)(api-key|password|secret|token$|Authorization)') {
+                         try { $prop.Value = "***" } catch {}
+                    } else {
+                        Walk-Object -Obj $prop.Value
+                    }
+                }
+            } elseif ($Obj -is [System.Collections.IEnumerable] -and $Obj -isnot [string]) {
+                foreach ($item in $Obj) {
+                    Walk-Object -Obj $item
+                }
+            }
+        }
+
+        Walk-Object -Obj $json
+        return ($json | ConvertTo-Json -Depth 10 -Compress)
+    } catch {
+        # Fallback to regex if not valid JSON
+    }
+
+    # Improved regex to handle quoted strings with spaces and simple key-value pairs
+    # Matches: "key": "value" (captures value in group 4) OR key=value (captures value in group 5)
+    return $InputString -replace '(?i)(["'']?(?:api-key|password|secret|token|Authorization)["'']?\s*[:=]\s*)((["''])((?:(?!\3).)*)\3|([^\s,"'']+)?)', '$1$3***$3'
+}
+
 # Extract token usage from a response, handling both Chat Completions and Responses API field names.
 function Read-TokenUsage {
     param($Response)
@@ -58,8 +107,8 @@ function Invoke-WithRetry {
                         $respBody = $reader.ReadToEnd()
                         $reader.Close()
 
-                        # Sanitize sensitive data - improved regex to handle JSON and quoted values
-                        $safeBody = $respBody -replace '(?i)(["'']?(?:api-key|password|secret|token)["'']?\s*[:=]\s*)(["'']?)([^"''\s,]+)(["'']?)', '$1$2***$4'
+                        # Sanitize sensitive data using JSON parsing or improved regex
+                        $safeBody = Redact-SensitiveData -InputString $respBody
                         if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
 
                         $errMsg = "$errMsg -- ResponseBody: $safeBody"
