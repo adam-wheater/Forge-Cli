@@ -4,17 +4,46 @@ function Score-File {
     param ([Parameter(Mandatory)][string]$Path)
 
     $score = 0
-    # Optimisation: Use switch -Regex for single-pass matching
-    switch -Regex ($Path) {
-        'Test|Tests' { $score += 50 }
-        'Service|Controller|Manager|Repository|Repo' { $score += 15 }
-        '\.cs$' { $score += 5 }
-        '\.ps1$' { $score += 5 }
-        '\.Tests\.ps1$' { $score += 50 }
-        'Module|Orchestrator|Agent' { $score += 15 }
-        '\.system\.txt$' { $score += 10 }
-        'Program|Startup' { $score -= 10 }
+
+    # Optimisation: Avoid switch -Regex for high-frequency string evaluation
+    # Use native .NET string methods for better performance
+
+    # 'Test|Tests'
+    if ($Path.IndexOf('Test', [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { $score += 50 }
+
+    # 'Service|Controller|Manager|Repository|Repo'
+    if ($Path.IndexOf('Service', [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+        $Path.IndexOf('Controller', [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+        $Path.IndexOf('Manager', [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+        $Path.IndexOf('Repo', [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        $score += 15
     }
+
+    # '\.cs$'
+    if ($Path.EndsWith('.cs', [System.StringComparison]::OrdinalIgnoreCase)) { $score += 5 }
+
+    # '\.ps1$'
+    if ($Path.EndsWith('.ps1', [System.StringComparison]::OrdinalIgnoreCase)) { $score += 5 }
+
+    # '\.Tests\.ps1$'
+    if ($Path.EndsWith('.Tests.ps1', [System.StringComparison]::OrdinalIgnoreCase)) { $score += 50 }
+
+    # 'Module|Orchestrator|Agent'
+    if ($Path.IndexOf('Module', [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+        $Path.IndexOf('Orchestrator', [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+        $Path.IndexOf('Agent', [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        $score += 15
+    }
+
+    # '\.system\.txt$'
+    if ($Path.EndsWith('.system.txt', [System.StringComparison]::OrdinalIgnoreCase)) { $score += 10 }
+
+    # 'Program|Startup'
+    if ($Path.IndexOf('Program', [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+        $Path.IndexOf('Startup', [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        $score -= 10
+    }
+
     $score -= (Get-RelevanceScore $Path)
     $score
 }

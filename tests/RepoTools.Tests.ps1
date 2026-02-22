@@ -36,8 +36,8 @@ Describe 'Find-SourceFiles' {
     }
 
     It 'Returns empty array if RepoRoot does not exist' {
-        Mock -CommandName Test-Path -MockWith { $false }
-        $result = Find-SourceFiles -RepoRoot '/nonexistent'
+        # Rely on actual filesystem check for non-existent path to avoid parameter binding issues with mocked Test-Path
+        $result = Find-SourceFiles -RepoRoot '/nonexistent-path-definitely-missing'
         $result | Should -BeEmpty
     }
 }
@@ -259,7 +259,8 @@ Describe 'Search-Files' {
             }
             Mock -CommandName Get-RelevanceScore -MockWith { 0 }
 
-            $result = Search-Files 'Test'
+            # Search for 'cs' to ensure all mocked files match the pattern
+            $result = Search-Files 'cs'
             # TestServiceTests.cs should be first (Test +50, Service +15, .cs +5 = 70)
             # TestService.cs next (Test +50, Service +15, .cs +5 = 70)
             # Program.cs should be last (Program -10, .cs +5 = -5)
