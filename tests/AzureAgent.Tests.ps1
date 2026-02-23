@@ -119,3 +119,59 @@ Describe 'Get-AzureAuthHeaders' {
         $headers['Content-Type'] | Should -Be 'application/json'
     }
 }
+
+Describe 'Redact-SensitiveData' {
+    Context 'JSON Data' {
+        It 'Redacts top-level api-key' {
+            $jsonInput = '{"api-key": "secret123"}'
+            $result = Redact-SensitiveData $jsonInput
+            $result | Should -Match '"api-key":"\*\*\*"'
+        }
+
+        It 'Redacts nested password' {
+            $jsonInput = '{"user": {"password": "pwd"}}'
+            $result = Redact-SensitiveData $jsonInput
+            $result | Should -Match '"password":"\*\*\*"'
+        }
+
+        It 'Redacts Authorization header in JSON' {
+            $jsonInput = '{"Authorization": "Bearer secret123"}'
+            $result = Redact-SensitiveData $jsonInput
+            $result | Should -Match '"Authorization":"\*\*\*"'
+        }
+
+        It 'Handles arrays' {
+            $jsonInput = '{"list": [{"token": "t1"}, {"token": "t2"}]}'
+            $result = Redact-SensitiveData $jsonInput
+            $result | Should -Match '"token":"\*\*\*"'
+            $result | Should -Not -Match '"t1"'
+            $result | Should -Not -Match '"t2"'
+        }
+    }
+
+    Context 'Unstructured Data' {
+        It 'Redacts api-key=value' {
+            $rawInput = 'api-key=secret123'
+            $result = Redact-SensitiveData $rawInput
+            $result | Should -Be 'api-key=***'
+        }
+
+        It 'Redacts Authorization: Bearer token' {
+            $rawInput = 'Authorization: Bearer secret123'
+            $result = Redact-SensitiveData $rawInput
+            $result | Should -Be 'Authorization: Bearer ***'
+        }
+
+        It 'Redacts Authorization: token' {
+            $rawInput = 'Authorization: secret123'
+            $result = Redact-SensitiveData $rawInput
+            $result | Should -Be 'Authorization: ***'
+        }
+
+        It 'Redacts access_token' {
+            $rawInput = 'access_token="xyz"'
+            $result = Redact-SensitiveData $rawInput
+            $result | Should -Be 'access_token="***"'
+        }
+    }
+}
