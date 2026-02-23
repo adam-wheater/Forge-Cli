@@ -259,7 +259,7 @@ Describe 'Search-Files' {
             }
             Mock -CommandName Get-RelevanceScore -MockWith { 0 }
 
-            $result = Search-Files 'Test'
+            $result = Search-Files '.'
             # TestServiceTests.cs should be first (Test +50, Service +15, .cs +5 = 70)
             # TestService.cs next (Test +50, Service +15, .cs +5 = 70)
             # Program.cs should be last (Program -10, .cs +5 = -5)
