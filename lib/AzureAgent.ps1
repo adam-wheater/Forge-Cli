@@ -31,6 +31,58 @@ function Read-TokenUsage {
     }
 }
 
+function Redact-SensitiveData {
+    param([string]$InputString)
+
+    if ([string]::IsNullOrWhiteSpace($InputString)) { return $InputString }
+
+    # Try JSON Redaction
+    if ($InputString.Trim().StartsWith('{') -or $InputString.Trim().StartsWith('[')) {
+        try {
+            $json = $InputString | ConvertFrom-Json -Depth 20 -ErrorAction Stop
+
+            function Redact-JsonRecursive {
+                param($Obj)
+
+                if ($Obj -is [System.Management.Automation.PSCustomObject]) {
+                    foreach ($prop in $Obj.PSObject.Properties) {
+                        if ($prop.Name -match '(?i)^(api-key|password|secret|token|access_token|refresh_token|authorization)$') {
+                            $prop.Value = "***"
+                        } else {
+                            Redact-JsonRecursive -Obj $prop.Value
+                        }
+                    }
+                }
+                elseif ($Obj -is [System.Collections.IDictionary]) {
+                     foreach ($key in @($Obj.Keys)) {
+                        if ($key -match '(?i)^(api-key|password|secret|token|access_token|refresh_token|authorization)$') {
+                            $Obj[$key] = "***"
+                        } else {
+                            Redact-JsonRecursive -Obj $Obj[$key]
+                        }
+                    }
+                }
+                elseif ($Obj -is [System.Collections.IList] -and $Obj -isnot [string]) {
+                    foreach ($item in $Obj) {
+                        Redact-JsonRecursive -Obj $item
+                    }
+                }
+            }
+
+            Redact-JsonRecursive -Obj $json
+            return ($json | ConvertTo-Json -Depth 20 -Compress)
+        } catch {
+            # Ignore JSON errors and fall back
+        }
+    }
+
+    # Fallback Regex
+    $redacted = $InputString -replace '(?i)(["'']?(?:api-key|password|secret|token|access_token|refresh_token)["'']?\s*[:=]\s*)(["'']?)([^"''\s,]+)(["'']?)', '$1$2***$4'
+    $redacted = $redacted -replace '(?i)(Authorization\s*:\s*(?:Bearer\s+)?)([^"''\s,\r\n}]+)', '$1***'
+
+    return $redacted
+}
+
 function Invoke-WithRetry {
     param (
         [Parameter(Mandatory)]
@@ -58,8 +110,8 @@ function Invoke-WithRetry {
                         $respBody = $reader.ReadToEnd()
                         $reader.Close()
 
-                        # Sanitize sensitive data - improved regex to handle JSON and quoted values
-                        $safeBody = $respBody -replace '(?i)(["'']?(?:api-key|password|secret|token)["'']?\s*[:=]\s*)(["'']?)([^"''\s,]+)(["'']?)', '$1$2***$4'
+                        # Sanitize sensitive data using centralized logic
+                        $safeBody = Redact-SensitiveData $respBody
                         if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
 
                         $errMsg = "$errMsg -- ResponseBody: $safeBody"
