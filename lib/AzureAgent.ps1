@@ -31,6 +31,40 @@ function Read-TokenUsage {
     }
 }
 
+function Redact-SensitiveData {
+    param(
+        [string]$Content
+    )
+    if ([string]::IsNullOrWhiteSpace($Content)) { return $Content }
+
+    $redacted = $Content
+
+    # Pattern 1: Authorization headers (Authorization: Bearer ...)
+    # Matches "Authorization" followed by colon, optional whitespace, scheme (Bearer/Basic), then the token
+    # We capture up to the end of the line or string
+    $authPattern = '(?i)(Authorization\s*:\s*\w+\s+)([^\r\n]+)'
+    $redacted = $redacted -replace $authPattern, '$1***'
+
+    # Pattern 2: JSON/Key-Value pairs
+    # Sensitive words: api-key, password, secret, token, auth, signature, credential
+    # We use a broad match for keys containing these words
+    $sensitiveWords = 'api[_-]?key|password|secret|token|auth|signature|credential'
+    # Use negative lookahead to avoid matching standard Authorization headers (handled by Pattern 1)
+    # But still match quoted "Authorization" in JSON
+    $keyPattern = '(?!Authorization\s*:)["'']?[\w-]*(?:' + $sensitiveWords + ')[\w-]*["'']?'
+
+    # Regex breakdown:
+    # Group 1: The key and separator (e.g. "api-key": )
+    # Group 2: Optional opening quote for value
+    # Group 3: The value (non-whitespace, non-quote, non-comma/semicolon)
+    # Group 4: Optional closing quote
+    $pattern = '(?i)(' + $keyPattern + '\s*[:=]\s*)(["'']?)([^"''\s,;]+)(["'']?)'
+
+    $redacted = $redacted -replace $pattern, '$1$2***$4'
+
+    return $redacted
+}
+
 function Invoke-WithRetry {
     param (
         [Parameter(Mandatory)]
@@ -58,8 +92,8 @@ function Invoke-WithRetry {
                         $respBody = $reader.ReadToEnd()
                         $reader.Close()
 
-                        # Sanitize sensitive data - improved regex to handle JSON and quoted values
-                        $safeBody = $respBody -replace '(?i)(["'']?(?:api-key|password|secret|token)["'']?\s*[:=]\s*)(["'']?)([^"''\s,]+)(["'']?)', '$1$2***$4'
+                        # Sanitize sensitive data
+                        $safeBody = Redact-SensitiveData -Content $respBody
                         if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
 
                         $errMsg = "$errMsg -- ResponseBody: $safeBody"
@@ -133,7 +167,15 @@ function Redact-AzureResponse {
         if ($clone.choices) {
             foreach ($choice in $clone.choices) {
                 if ($choice.message) {
-                    if ($choice.message.content) { $choice.message.content = "[REDACTED]" }
+                    if ($choice.message.content) {
+                        # We don't want to fully hide content, just secrets
+                        # But debug logs often want to hide bulk content to save space/privacy
+                        # The original code fully redacted it: $choice.message.content = "[REDACTED]"
+                        # I'll keep the original behavior for structure, but ensure if we printed it we'd be safe.
+                        # Actually, Redact-AzureResponse seems to be for suppressing large/private content in debug logs.
+                        # So keeping "[REDACTED]" is safer and consistent.
+                        $choice.message.content = "[REDACTED]"
+                    }
                     if ($choice.message.tool_calls) {
                         foreach ($tc in $choice.message.tool_calls) {
                             if ($tc.function -and $tc.function.arguments) {
@@ -151,7 +193,8 @@ function Redact-AzureResponse {
 
         return $clone
     } catch {
-        return "Error redacting response: $_"
+        # Fallback to string redaction if JSON processing fails
+        return Redact-SensitiveData -Content "Error redacting response: $_"
     }
 }
 
