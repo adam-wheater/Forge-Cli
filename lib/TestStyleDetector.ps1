@@ -75,18 +75,10 @@ function Detect-TestStyle {
         nunit  = 0
         mstest = 0
     }
-    $frameworkCounts.xunit  += ([regex]::Matches($allText, '\[Fact\]')).Count
-    $frameworkCounts.xunit  += ([regex]::Matches($allText, '\[Theory\]')).Count
-    $frameworkCounts.xunit  += ([regex]::Matches($allText, '\[InlineData\b')).Count
-    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[Test\]')).Count
-    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[TestCase\b')).Count
-    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[TestFixture\]')).Count
-    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[SetUp\]')).Count
-    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[TearDown\]')).Count
-    $frameworkCounts.mstest += ([regex]::Matches($allText, '\[TestMethod\]')).Count
-    $frameworkCounts.mstest += ([regex]::Matches($allText, '\[TestClass\]')).Count
-    $frameworkCounts.mstest += ([regex]::Matches($allText, '\[DataRow\b')).Count
-    $frameworkCounts.mstest += ([regex]::Matches($allText, '\[TestInitialize\]')).Count
+    # Optimized: Combined regexes
+    $frameworkCounts.xunit  += ([regex]::Matches($allText, '\[(?:Fact|Theory)\]|\[InlineData\b')).Count
+    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[(?:Test|TestFixture|SetUp|TearDown)\]|\[TestCase\b')).Count
+    $frameworkCounts.mstest += ([regex]::Matches($allText, '\[(?:TestMethod|TestClass|TestInitialize)\]|\[DataRow\b')).Count
 
     $testFramework = "unknown"
     $maxFramework = ($frameworkCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1)
@@ -102,17 +94,10 @@ function Detect-TestStyle {
         nsubstitute  = 0
         fakeiteasy   = 0
     }
-    $mockCounts.moq         += ([regex]::Matches($allText, 'new\s+Mock<')).Count
-    $mockCounts.moq         += ([regex]::Matches($allText, 'Mock<')).Count
-    $mockCounts.moq         += ([regex]::Matches($allText, '\.Setup\(')).Count
-    $mockCounts.moq         += ([regex]::Matches($allText, '\.Verify\(')).Count
-    $mockCounts.moq         += ([regex]::Matches($allText, 'It\.IsAny<')).Count
-    $mockCounts.moq         += ([regex]::Matches($allText, '\.Object\b')).Count
-    $mockCounts.nsubstitute += ([regex]::Matches($allText, 'Substitute\.For<')).Count
-    $mockCounts.nsubstitute += ([regex]::Matches($allText, '\.Returns\(')).Count
-    $mockCounts.nsubstitute += ([regex]::Matches($allText, '\.Received\(')).Count
-    $mockCounts.fakeiteasy  += ([regex]::Matches($allText, 'A\.Fake<')).Count
-    $mockCounts.fakeiteasy  += ([regex]::Matches($allText, 'A\.CallTo\(')).Count
+    # Optimized: Combined regexes
+    $mockCounts.moq         += ([regex]::Matches($allText, '(?:new\s+Mock<|Mock<|\.Setup\(|\.Verify\(|It\.IsAny<|\.Object\b)')).Count
+    $mockCounts.nsubstitute += ([regex]::Matches($allText, '(?:Substitute\.For<|\.Returns\(|\.Received\()')).Count
+    $mockCounts.fakeiteasy  += ([regex]::Matches($allText, '(?:A\.Fake<|A\.CallTo\()')).Count
 
     $mockLibrary = "none"
     $maxMock = ($mockCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1)
@@ -128,21 +113,11 @@ function Detect-TestStyle {
         shouldly         = 0
         builtin          = 0
     }
-    $assertCounts.fluentassertions += ([regex]::Matches($allText, '\.Should\(\)')).Count
-    $assertCounts.fluentassertions += ([regex]::Matches($allText, '\.BeEquivalentTo\(')).Count
-    $assertCounts.fluentassertions += ([regex]::Matches($allText, '\.BeTrue\(')).Count
-    $assertCounts.fluentassertions += ([regex]::Matches($allText, '\.HaveCount\(')).Count
-    $assertCounts.shouldly         += ([regex]::Matches($allText, '\.ShouldBe\(')).Count
-    $assertCounts.shouldly         += ([regex]::Matches($allText, '\.ShouldNotBeNull\(')).Count
-    $assertCounts.shouldly         += ([regex]::Matches($allText, '\.ShouldThrow\(')).Count
+    # Optimized: Combined regexes
+    $assertCounts.fluentassertions += ([regex]::Matches($allText, '\.(?:Should\(\)|BeEquivalentTo\(|BeTrue\(|HaveCount\()')).Count
+    $assertCounts.shouldly         += ([regex]::Matches($allText, '\.(?:ShouldBe\(|ShouldNotBeNull\(|ShouldThrow\()')).Count
     # Built-in assertions (xUnit, NUnit, MSTest)
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.Equal\(')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.True\(')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.Throws<')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.That\(')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Is\.EqualTo\(')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.AreEqual\(')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.IsTrue\(')).Count
+    $assertCounts.builtin          += ([regex]::Matches($allText, '(?:Assert\.(?:Equal\(|True\(|Throws<|That\(|AreEqual\(|IsTrue\()|Is\.EqualTo\()')).Count
 
     $assertionStyle = "builtin"
     $maxAssert = ($assertCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1)
