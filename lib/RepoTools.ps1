@@ -4,16 +4,34 @@ function Score-File {
     param ([Parameter(Mandatory)][string]$Path)
 
     $score = 0
-    # Optimisation: Use switch -Regex for single-pass matching
-    switch -Regex ($Path) {
-        'Test|Tests' { $score += 50 }
-        'Service|Controller|Manager|Repository|Repo' { $score += 15 }
-        '\.cs$' { $score += 5 }
-        '\.ps1$' { $score += 5 }
-        '\.Tests\.ps1$' { $score += 50 }
-        'Module|Orchestrator|Agent' { $score += 15 }
-        '\.system\.txt$' { $score += 10 }
-        'Program|Startup' { $score -= 10 }
+    # Optimisation: Use string methods instead of regex for better performance
+    $sc = [System.StringComparison]::OrdinalIgnoreCase
+
+    # Extensions
+    if ($Path.EndsWith('.Tests.ps1', $sc)) { $score += 50 }
+    if ($Path.EndsWith('.ps1', $sc)) { $score += 5 }
+    if ($Path.EndsWith('.cs', $sc)) { $score += 5 }
+    if ($Path.EndsWith('.system.txt', $sc)) { $score += 10 }
+
+    # Substrings
+    if ($Path.IndexOf('Test', $sc) -ge 0) { $score += 50 }
+
+    if ($Path.IndexOf('Service', $sc) -ge 0 -or
+        $Path.IndexOf('Controller', $sc) -ge 0 -or
+        $Path.IndexOf('Manager', $sc) -ge 0 -or
+        $Path.IndexOf('Repo', $sc) -ge 0) {
+        $score += 15
+    }
+
+    if ($Path.IndexOf('Module', $sc) -ge 0 -or
+        $Path.IndexOf('Orchestrator', $sc) -ge 0 -or
+        $Path.IndexOf('Agent', $sc) -ge 0) {
+        $score += 15
+    }
+
+    if ($Path.IndexOf('Program', $sc) -ge 0 -or
+        $Path.IndexOf('Startup', $sc) -ge 0) {
+        $score -= 10
     }
     $score -= (Get-RelevanceScore $Path)
     $score
