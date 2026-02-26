@@ -173,34 +173,70 @@ function Search-Hybrid {
     }
 }
 
+function Test-PathInRepo {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [string]$RepoRoot
+    )
+
+    if (-not $RepoRoot) {
+        $RepoRoot = (Get-Location).Path
+    }
+
+    try {
+        # Resolve RepoRoot to absolute path
+        $absRepoRoot = (Resolve-Path $RepoRoot -ErrorAction Stop).Path
+    } catch {
+        Write-Verbose "Test-PathInRepo: RepoRoot '$RepoRoot' could not be resolved."
+        return $false
+    }
+
+    # Normalize RepoRoot
+    $absRepoRoot = $absRepoRoot.Replace('\', '/')
+    if (-not $absRepoRoot.EndsWith('/')) {
+        $absRepoRoot += '/'
+    }
+
+    try {
+        if (Test-Path $Path) {
+             $absPath = (Convert-Path $Path).Replace('\', '/')
+        } else {
+             # Handle non-existent path by resolving absolute path
+             if ([System.IO.Path]::IsPathRooted($Path)) {
+                 $absPath = ([System.IO.Path]::GetFullPath($Path)).Replace('\', '/')
+             } else {
+                 $absPath = ([System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))).Replace('\', '/')
+             }
+        }
+
+        # Check if it starts with RepoRoot
+        if ($absPath -eq $absRepoRoot.TrimEnd('/')) {
+            return $true
+        }
+
+        return $absPath.StartsWith($absRepoRoot)
+    } catch {
+        Write-Verbose "Test-PathInRepo: Path '$Path' resolution failed: $($_.Exception.Message)"
+        return $false
+    }
+}
+
 function Open-File {
-    param ([Parameter(Mandatory)][string]$Path, [int]$MaxLines = 400)
+    param (
+        [Parameter(Mandatory)][string]$Path,
+        [int]$MaxLines = 400,
+        [string]$RepoRoot
+    )
 
     if (-not (Test-Path $Path)) { return "FILE_NOT_FOUND" }
 
-    # Validate that the resolved path is within the repository root
+    if (-not (Test-PathInRepo -Path $Path -RepoRoot $RepoRoot)) {
+        return "ACCESS_DENIED"
+    }
+
     try {
-        $repoRoot = (Resolve-Path "$PSScriptRoot/.." -ErrorAction Stop).Path
-        # Normalize repo root to have consistent separators
-        $repoRoot = $repoRoot.Replace('\', '/')
-
         $resolvedPaths = Convert-Path -Path $Path -ErrorAction Stop
-
-        foreach ($resPath in $resolvedPaths) {
-            $p = $resPath.Replace('\', '/')
-
-            # Ensure the path starts with the repo root directory
-            # append / to repoRoot to ensure we don't match partial directory names
-            $rootCheck = $repoRoot
-            if (-not $rootCheck.EndsWith('/')) {
-                $rootCheck += '/'
-            }
-
-            if (-not $p.StartsWith($rootCheck) -and $p -ne $repoRoot) {
-                return "ACCESS_DENIED"
-            }
-        }
-
         Mark-Relevant $Path
         (Get-Content -Path $resolvedPaths -TotalCount $MaxLines) -join "`n"
     } catch {

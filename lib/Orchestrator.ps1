@@ -45,14 +45,20 @@ function Invoke-WriteFile {
     )
 
     try {
-        $resolvedRepo = (Resolve-Path $RepoRoot -ErrorAction Stop).Path
-        $fullPath = if ([System.IO.Path]::IsPathRooted($Path)) { $Path } else { Join-Path $resolvedRepo $Path }
-        $fullPath = [System.IO.Path]::GetFullPath($fullPath)
-
-        # Validate: path must be within RepoRoot
-        if (-not $fullPath.StartsWith($resolvedRepo)) {
-            return "WRITE_FAILED: Path '$Path' is outside the repository root"
+        if (-not (Test-PathInRepo -Path $RepoRoot)) {
+            return "WRITE_FAILED: RepoRoot '$RepoRoot' is outside the current repository"
         }
+        $resolvedRepo = (Resolve-Path $RepoRoot -ErrorAction Stop).Path
+
+        # Check if the target path (inside repo root) is valid
+        # We construct the full path and verify it is within $resolvedRepo
+        $fullPath = if ([System.IO.Path]::IsPathRooted($Path)) { $Path } else { Join-Path $resolvedRepo $Path }
+
+        if (-not (Test-PathInRepo -Path $fullPath -RepoRoot $resolvedRepo)) {
+             return "WRITE_FAILED: Path '$Path' is outside the repository root '$RepoRoot'"
+        }
+
+        $fullPath = [System.IO.Path]::GetFullPath($fullPath)
 
         # Validate: path must be a .cs file
         if ($fullPath -notmatch '\.cs$') {
@@ -814,6 +820,9 @@ function Invoke-ToolCall {
         "open_file" {
             if ($Opens.Value -ge $MAX_OPENS) { return "LIMIT_REACHED: Max opens ($MAX_OPENS) exceeded" }
             $Opens.Value++
+            # Open-File internally validates Path is in CWD (which is assumed to be RepoRoot in Run-Agent)
+            # We can also explicitly check here for robustness
+            if (-not (Test-PathInRepo -Path $Arguments.path)) { return "ACCESS_DENIED: Path is outside the repository" }
             $file = Open-File $Arguments.path
             $imports = Get-Imports $Arguments.path
             $ctors = Get-ConstructorDependencies $Arguments.path
@@ -829,29 +838,35 @@ function Invoke-ToolCall {
             if ($Writes.Value -ge $MAX_WRITES) { return "LIMIT_REACHED: Max writes ($MAX_WRITES) exceeded" }
             $Writes.Value++
             $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            if (-not (Test-PathInRepo -Path $repoRoot)) { return "ACCESS_DENIED: RepoRoot is outside the repository" }
             return "WRITE_RESULT:`n$(Invoke-WriteFile -Path $Arguments.path -Content $Arguments.content -RepoRoot $repoRoot)"
         }
         "run_tests" {
             if ($TestRuns.Value -ge $MAX_TEST_RUNS) { return "LIMIT_REACHED: Max test runs ($MAX_TEST_RUNS) exceeded" }
             $TestRuns.Value++
             $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            if (-not (Test-PathInRepo -Path $repoRoot)) { return "ACCESS_DENIED: RepoRoot is outside the repository" }
             return "TEST_RESULTS:`n$(Invoke-RunTests -RepoRoot $repoRoot -Filter $Arguments.filter)"
         }
         "read_test_output" {
             $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            if (-not (Test-PathInRepo -Path $repoRoot)) { return "ACCESS_DENIED: RepoRoot is outside the repository" }
             return "TEST_OUTPUT:`n$(Invoke-ReadTestOutput -RepoRoot $repoRoot)"
         }
         "get_coverage" {
             if ($CoverageRuns.Value -ge $MAX_COVERAGE_RUNS) { return "LIMIT_REACHED: Max coverage runs ($MAX_COVERAGE_RUNS) exceeded" }
             $CoverageRuns.Value++
             $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            if (-not (Test-PathInRepo -Path $repoRoot)) { return "ACCESS_DENIED: RepoRoot is outside the repository" }
             return "COVERAGE:`n$(Invoke-GetCoverage -RepoRoot $repoRoot)"
         }
         "list_tests" {
             $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            if (-not (Test-PathInRepo -Path $repoRoot)) { return "ACCESS_DENIED: RepoRoot is outside the repository" }
             return "TEST_LIST:`n$(Invoke-ListTests -RepoRoot $repoRoot)"
         }
         "get_symbols" {
+            if (-not (Test-PathInRepo -Path $Arguments.path)) { return "ACCESS_DENIED: Path is outside the repository" }
             $result = Get-CSharpSymbols -Path $Arguments.path
             $formatted = "Namespace: $($result.Namespace)`n"
             foreach ($cls in $result.Classes) {
@@ -872,6 +887,7 @@ function Invoke-ToolCall {
         }
         "get_interface" {
             $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            if (-not (Test-PathInRepo -Path $repoRoot)) { return "ACCESS_DENIED: RepoRoot is outside the repository" }
             $result = Get-CSharpInterface -InterfaceName $Arguments.name -RepoRoot $repoRoot
             if ($result) {
                 $formatted = "Interface: $($result.Name) in $($result.Path)`n"
@@ -885,6 +901,7 @@ function Invoke-ToolCall {
             }
         }
         "get_nuget_info" {
+            if (-not (Test-PathInRepo -Path $Arguments.path)) { return "ACCESS_DENIED: Path is outside the repository" }
             $result = Get-NuGetPackages -ProjectPath $Arguments.path
             $formatted = "TestFramework: $($result.TestFramework), MockLibrary: $($result.MockLibrary), AssertionLibrary: $($result.AssertionLibrary)`n"
             $formatted += "Packages: $(($result.Packages | ForEach-Object { "$($_.Name)@$($_.Version)" }) -join ', ')`n"
@@ -895,6 +912,7 @@ function Invoke-ToolCall {
         }
         "get_di_registrations" {
             $repoRoot = if ($Arguments.repo_root) { $Arguments.repo_root } else { (Get-Location).Path }
+            if (-not (Test-PathInRepo -Path $repoRoot)) { return "ACCESS_DENIED: RepoRoot is outside the repository" }
             $result = Get-DIRegistrations -RepoRoot $repoRoot
             $formatted = ""
             foreach ($reg in $result.Registrations) {
