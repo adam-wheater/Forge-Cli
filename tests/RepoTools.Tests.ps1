@@ -37,6 +37,10 @@ Describe 'Find-SourceFiles' {
 
     It 'Returns empty array if RepoRoot does not exist' {
         Mock -CommandName Test-Path -MockWith { $false }
+        # Explicitly remove any existing mocks for Resolve-Path for this block if possible
+        # Or ensure we don't mock it at all since Find-SourceFiles shouldn't call it if Test-Path fails.
+        # But Pester mocks are scoped to Describe/Context.
+
         $result = Find-SourceFiles -RepoRoot '/nonexistent'
         $result | Should -BeEmpty
     }
@@ -259,10 +263,18 @@ Describe 'Search-Files' {
             }
             Mock -CommandName Get-RelevanceScore -MockWith { 0 }
 
-            $result = Search-Files 'Test'
+            # Using a broader filter 's' to ensure all mocked files are returned by Search-Files
+            # Search-Files internally does regex matching. 'Test' matches all 3 files?
+            # src/Program.cs -> Does NOT match 'Test'. So it's filtered out!
+            # We need a pattern that matches ALL of them to test sorting.
+            $result = Search-Files 's'
+
+            # Program.cs contains 's', TestService.cs contains 's', TestServiceTests.cs contains 's'
+
             # TestServiceTests.cs should be first (Test +50, Service +15, .cs +5 = 70)
             # TestService.cs next (Test +50, Service +15, .cs +5 = 70)
             # Program.cs should be last (Program -10, .cs +5 = -5)
+
             $result[-1] | Should -Be 'src/Program.cs'
         }
     }
@@ -302,7 +314,7 @@ Describe 'Open-File' {
             # Mock Repo Root resolution
             Mock -CommandName Resolve-Path -MockWith {
                  return [PSCustomObject]@{ Path = '/app' }
-            } -ParameterFilter { $Path -like "*.." }
+        } -ParameterFilter { $Path -match "^\s*\.\." }
 
             # Mock File resolution
             Mock -CommandName Convert-Path -MockWith {
@@ -330,7 +342,7 @@ Describe 'Open-File' {
              # Mock Repo Root resolution
              Mock -CommandName Resolve-Path -MockWith {
                  return [PSCustomObject]@{ Path = '/app' }
-             } -ParameterFilter { $Path -like "*.." }
+             } -ParameterFilter { $Path -match "^\s*\.\." }
 
              # Mock File resolution to outside path
              Mock -CommandName Convert-Path -MockWith {
