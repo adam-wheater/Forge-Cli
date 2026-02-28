@@ -16,6 +16,24 @@ function Get-AzureAuthHeaders {
     return $headers
 }
 
+function Redact-SensitiveData {
+    param(
+        [string]$Text
+    )
+    if ([string]::IsNullOrEmpty($Text)) { return $Text }
+
+    # 1. Redact Authorization headers while preserving the scheme (e.g., Bearer, Basic)
+    $Text = $Text -replace '(?i)(Authorization:\s*(\w+)\s+)(\S+)', '$1***'
+
+    # 2. Broad regex for JSON and key-value pairs
+    # Matches keys like api-key, password, secret, token, auth, signature, credential
+    # Handles snake_case, camelCase, and quoted/unquoted keys and values
+    # We use a non-capturing group to either match quoted values until the closing quote, or unquoted values
+    $Text = $Text -replace '(?i)(["'']?(?:api-key|password|secret|token|auth|signature|credential)["'']?\s*[:=]\s*)(?:(["''])(.*?)\2|([^"''\s,]+))', '$1$2***$2'
+
+    return $Text
+}
+
 # Extract token usage from a response, handling both Chat Completions and Responses API field names.
 function Read-TokenUsage {
     param($Response)
@@ -59,7 +77,7 @@ function Invoke-WithRetry {
                         $reader.Close()
 
                         # Sanitize sensitive data - improved regex to handle JSON and quoted values
-                        $safeBody = $respBody -replace '(?i)(["'']?(?:api-key|password|secret|token)["'']?\s*[:=]\s*)(["'']?)([^"''\s,]+)(["'']?)', '$1$2***$4'
+                        $safeBody = Redact-SensitiveData -Text $respBody
                         if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
 
                         $errMsg = "$errMsg -- ResponseBody: $safeBody"
@@ -67,6 +85,9 @@ function Invoke-WithRetry {
                     }
                 } catch {}
             }
+
+            # Redact sensitive info in the error message
+            $errMsg = Redact-SensitiveData -Text $errMsg
 
             # Check for custom retry logic
             if ($ShouldRetry) {
