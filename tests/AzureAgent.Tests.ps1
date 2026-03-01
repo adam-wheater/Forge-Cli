@@ -119,3 +119,41 @@ Describe 'Get-AzureAuthHeaders' {
         $headers['Content-Type'] | Should -Be 'application/json'
     }
 }
+
+Describe 'Redact-SensitiveData' {
+    It 'Redacts JSON string correctly' {
+        $input = '{"api-key": "my-secret-key"}'
+        $result = Redact-SensitiveData -Text $input
+        $result | Should -Be '{"api-key": "***"}'
+    }
+
+    It 'Redacts different keys' {
+        $input = '{"password":"123", "token" : "abc", "secret":"xyz"}'
+        $result = Redact-SensitiveData -Text $input
+        $result | Should -Be '{"password":"***", "token" : "***", "secret":"***"}'
+    }
+
+    It 'Redacts key value pairs' {
+        $input = 'api-key=mysecret123&other=value'
+        $result = Redact-SensitiveData -Text $input
+        $result | Should -Be 'api-key=***&other=value'
+    }
+
+    It 'Preserves Authorization scheme' {
+        $input = 'Authorization: Bearer my-token-123'
+        $result = Redact-SensitiveData -Text $input
+        $result | Should -Be 'Authorization: Bearer ***'
+    }
+
+    It 'Preserves Authorization scheme with Basic' {
+        $input = 'Authorization: Basic base64encoded=='
+        $result = Redact-SensitiveData -Text $input
+        $result | Should -Be 'Authorization: Basic ***'
+    }
+
+    It 'Does not modify clean text' {
+        $input = '{"key": "value"}'
+        $result = Redact-SensitiveData -Text $input
+        $result | Should -Be '{"key": "value"}'
+    }
+}
