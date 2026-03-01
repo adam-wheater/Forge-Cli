@@ -16,6 +16,22 @@ function Get-AzureAuthHeaders {
     return $headers
 }
 
+function Redact-SensitiveData {
+    param([string]$Text)
+    if (-not $Text) { return $Text }
+
+    # Mask Authorization headers but keep the scheme (e.g., Bearer, Basic)
+    $safeText = $Text -replace '(?i)(Authorization\s*:\s*(?:Bearer|Basic)\s+)([^\s]+)', '$1***'
+    $safeText = $safeText -replace '(?i)(Authorization\s*=\s*["'']?(?:Bearer|Basic)\s+)([^\s"''&]+)', '$1***'
+
+    # Robustly mask common secrets in JSON or key-value structures
+    # Matches: "api-key": "secret_value" or api-key=secret_value
+    $safeText = $safeText -replace '(?i)(["'']?(?:api-key|password|secret|token|auth|signature|credential)["'']?\s*[:=]\s*)(["'']?)([^"''\s,&}\]]+)(["'']?)', '$1$2***$4'
+
+    return $safeText
+}
+
+
 # Extract token usage from a response, handling both Chat Completions and Responses API field names.
 function Read-TokenUsage {
     param($Response)
@@ -59,7 +75,7 @@ function Invoke-WithRetry {
                         $reader.Close()
 
                         # Sanitize sensitive data - improved regex to handle JSON and quoted values
-                        $safeBody = $respBody -replace '(?i)(["'']?(?:api-key|password|secret|token)["'']?\s*[:=]\s*)(["'']?)([^"''\s,]+)(["'']?)', '$1$2***$4'
+                        $safeBody = Redact-SensitiveData -Text $respBody
                         if ($safeBody.Length -gt 500) { $safeBody = $safeBody.Substring(0, 500) + '...[truncated]' }
 
                         $errMsg = "$errMsg -- ResponseBody: $safeBody"
