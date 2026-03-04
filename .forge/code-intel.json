@@ -1,308 +1,117 @@
 {
+  "testToCodeMap": {
+    "RedisCache.Tests": [
+      "lib/RedisCache.ps1"
+    ],
+    "CallGraph.Tests": [
+      "lib/CallGraph.ps1"
+    ],
+    "CostEstimator.Tests": [
+      "lib/CostEstimator.ps1"
+    ],
+    "TaskOrchestrator.Tests": [
+      "lib/TaskOrchestrator.ps1"
+    ],
+    "AzureAgent.Tests": [
+      "lib/AzureAgent.ps1"
+    ],
+    "RepoMemory.Tests": [
+      "lib/RepoMemory.ps1"
+    ],
+    "MetricsTracker.Tests": [
+      "lib/MetricsTracker.ps1"
+    ],
+    "RetrievalAgent.Tests": [
+      "lib/RetrievalAgent.ps1"
+    ],
+    "FeedbackLoop.Tests": [
+      "lib/FeedbackLoop.ps1"
+    ],
+    "ConfigLoader.Tests": [
+      "lib/ConfigLoader.ps1"
+    ],
+    "Embeddings.Tests": [
+      "lib/Embeddings.ps1"
+    ],
+    "TestStyleDetector.Tests": [
+      "lib/TestStyleDetector.ps1"
+    ],
+    "RepoTools.Tests": [
+      "lib/RepoTools.ps1"
+    ],
+    "WorkerDispatch.Tests": [
+      "lib/WorkerDispatch.ps1"
+    ],
+    "CSharpAnalyser.Tests": [
+      "lib/CSharpAnalyser.ps1"
+    ],
+    "Orchestrator.Tests": [
+      "lib/Orchestrator.ps1"
+    ],
+    "TokenBudget.Tests": [
+      "lib/TokenBudget.ps1"
+    ],
+    "PluginLoader.Tests": [
+      "lib/PluginLoader.ps1"
+    ]
+  },
+  "recentlyChanged": [
+    ".env.example",
+    ".forge/code-intel.json",
+    ".forge/git-state.json",
+    ".forge/repo-map.json",
+    ".gitignore",
+    ".jules/sentinel.md",
+    "AI_MODE.txt",
+    "CLAUDE.md",
+    "agents/builder.system.txt",
+    "agents/judge.system.txt",
+    "agents/orchestrator.system.txt",
+    "agents/reviewer.system.txt",
+    "agents/tools.system.txt",
+    "agents/worker.system.txt",
+    "forge.config.json",
+    "forge.ps1",
+    "lib/AzureAgent.ps1",
+    "lib/CLAUDE.md",
+    "lib/CSharpAnalyser.ps1",
+    "lib/CallGraph.ps1"
+  ],
+  "failingTestToCode": {},
   "callGraph": {
-    "DebugLogger": {
+    "TestStyleDetector": {
       "defines": [
-        "Init-Debug",
-        "Write-DebugLog"
+        "Detect-TestStyle",
+        "Get-TestStylePrompt"
       ],
       "calls": [
-        "Join-Path",
-        "Get-Location",
-        "Test-Path",
-        "New-Item",
-        "Out-Null",
-        "Get-Date",
-        "Write-Warning",
-        "Out-File"
-      ]
-    },
-    "ConfigLoader": {
-      "defines": [
-        "Load-ForgeConfig"
-      ],
-      "calls": [
-        "Join-Path",
-        "Test-Path",
-        "Get-Content",
-        "ConvertFrom-Json",
-        "Write-Warning"
-      ]
-    },
-    "TestDataBuilder": {
-      "defines": [
-        "Get-EntityClasses",
-        "Get-TestDataBuilder",
-        "Get-BuilderDefaultValue",
-        "Get-AllBuilders"
-      ],
-      "calls": [
-        "Get-CSharpSymbols",
         "Test-Path",
         "Write-Warning",
+        "Get-ChildItem",
+        "Where-Object",
         "ForEach-Object",
-        "Join-Path",
+        "Get-Content",
+        "Sort-Object",
+        "Select-Object",
+        "Arrange-Act"
+      ]
+    },
+    "CostEstimator": {
+      "defines": [
+        "Estimate-RunCost",
+        "Format-CostEstimate",
+        "Confirm-CostThreshold"
+      ],
+      "calls": [
+        "Test-Path",
         "Get-ChildItem",
         "Where-Object",
         "Get-Content",
-        "A-Z",
-        "Sort-Object",
-        "New-Item",
-        "Out-Null",
-        "Set-Content"
-      ]
-    },
-    "PatternLibrary": {
-      "defines": [
-        "Save-TestPattern",
-        "Get-TestPatterns",
-        "Match-TestPattern"
-      ],
-      "calls": [
+        "Measure-Object",
         "Write-Warning",
-        "Join-Path",
-        "Test-Path",
-        "New-Item",
-        "Out-Null",
-        "Get-Content",
-        "ConvertFrom-Json",
-        "Get-Date",
-        "ConvertTo-Json",
-        "Set-Content",
-        "Sort-Object",
-        "Select-Object"
-      ]
-    },
-    "RoslynAnalyser": {
-      "defines": [
-        "Get-MethodAnalysis",
-        "Get-ClassComplexity",
-        "Get-ThrowStatements"
-      ],
-      "calls": [
-        "Test-Path",
-        "Write-Warning",
-        "Get-Content",
-        "ForEach-Object",
-        "A-Z"
-      ]
-    },
-    "DecisionTrace": {
-      "defines": [
-        "Initialize-DecisionTrace",
-        "Trace-AgentDecision",
-        "Get-DecisionTrace",
-        "Export-DecisionTrace",
-        "Get-DecisionSummary"
-      ],
-      "calls": [
-        "Join-Path",
-        "Test-Path",
-        "New-Item",
-        "Out-Null",
-        "Get-Date",
         "Split-Path",
         "Write-Host",
-        "ConvertTo-Json",
-        "Out-File",
-        "Write-Warning",
-        "Where-Object",
-        "Select-Object",
-        "ForEach-Object",
-        "Measure-Object"
-      ]
-    },
-    "Orchestrator": {
-      "defines": [
-        "calling",
-        "New-AgentError",
-        "Invoke-WriteFile",
-        "Invoke-RunTests",
-        "Invoke-ReadTestOutput",
-        "Invoke-GetCoverage",
-        "Invoke-ExplainError",
-        "Invoke-ListTests",
-        "Run-Agent",
-        "calling",
-        "Build-ToolDefinitions",
-        "calling",
-        "Invoke-ToolCall",
-        "calling",
-        "Run-AgentWithFunctionCalling"
-      ],
-      "calls": [
-        "Get-Date",
-        "Resolve-Path",
-        "Join-Path",
-        "Split-Path",
-        "Test-Path",
-        "New-Item",
-        "Out-Null",
-        "Out-File",
-        "Measure-Object",
-        "Start-Job",
-        "Out-String",
-        "Wait-Job",
-        "Stop-Job",
-        "Remove-Job",
-        "Receive-Job",
-        "ConvertTo-Json",
-        "Get-ChildItem",
-        "Where-Object",
-        "Sort-Object",
-        "Get-Content",
-        "Write-DebugLog",
-        "Invoke-AzureAgent",
-        "ConvertFrom-Json",
-        "Search-Files",
-        "Open-File",
-        "Get-Imports",
-        "Get-ConstructorDependencies",
-        "Show-Diff",
-        "Get-Location",
-        "Get-CSharpSymbols",
-        "ForEach-Object",
-        "Get-CSharpInterface",
-        "Get-NuGetPackages",
-        "Get-DIRegistrations",
-        "Invoke-SemanticSearch",
-        "Search-Embeddings",
-        "Get-Command",
-        "Invoke-AzureAgentWithTools"
-      ]
-    },
-    "EdgeCaseGenerator": {
-      "defines": [
-        "Get-EdgeCases",
-        "Get-TypeEdgeCases",
-        "Get-EdgeCaseContext"
-      ],
-      "calls": [
-        "Get-CSharpSymbols",
-        "Write-Warning",
-        "Test-Path"
-      ]
-    },
-    "RelevanceTracker": {
-      "defines": [
-        "Mark-Relevant",
-        "Get-RelevanceScore"
-      ],
-      "calls": []
-    },
-    "DependencyGraph": {
-      "defines": [
-        "Get-ProjectDependencies",
-        "Get-SolutionGraph",
-        "Get-TestOrder"
-      ],
-      "calls": [
-        "Test-Path",
-        "Write-Warning",
-        "Get-Content",
-        "ForEach-Object",
-        "Split-Path",
-        "Join-Path",
-        "Where-Object",
-        "Sort-Object"
-      ]
-    },
-    "MockScaffolder": {
-      "defines": [
-        "Get-MockScaffold",
-        "Get-MockSetupLine",
-        "Get-DefaultValue",
-        "Get-MockScaffoldContext"
-      ],
-      "calls": [
-        "Get-CSharpSymbols",
-        "Get-CSharpInterface",
-        "Test-Path",
-        "Write-Warning",
-        "Sort-Object",
-        "Select-Object",
-        "A-Z"
-      ]
-    },
-    "RepoTools": {
-      "defines": [
-        "Score-File",
-        "Search-Files",
-        "Search-Hybrid",
-        "Open-File",
-        "Show-Diff"
-      ],
-      "calls": [
-        "Get-RelevanceScore",
-        "ForEach-Object",
-        "Select-Object",
-        "Where-Object",
-        "Sort-Object",
-        "Write-Warning",
-        "Invoke-SemanticSearch",
-        "Test-Path",
-        "Mark-Relevant",
-        "Get-Content"
-      ]
-    },
-    "ImportGraph": {
-      "defines": [
-        "Get-Imports"
-      ],
-      "calls": [
-        "Test-Path",
-        "Get-Content",
-        "Where-Object",
-        "ForEach-Object",
-        "Select-Object"
-      ]
-    },
-    "CallGraph": {
-      "defines": [
-        "Get-ConstructorDependencies"
-      ],
-      "calls": [
-        "Test-Path",
-        "Get-Content",
-        "Select-String",
-        "Select-Object"
-      ]
-    },
-    "Embeddings": {
-      "defines": [
-        "Get-Embedding",
-        "Get-CosineSimilarity",
-        "Search-Embeddings",
-        "Split-CSharpFile",
-        "Split-LargeChunk",
-        "Build-EmbeddingIndex",
-        "Load-EmbeddingIndex",
-        "Invoke-SemanticSearch",
-        "Get-RAGContext",
-        "Update-EmbeddingIndex",
-        "Build-TestMapping",
-        "Get-SolutionGraph"
-      ],
-      "calls": [
-        "ConvertTo-Json",
-        "Content-Type",
-        "Invoke-RestMethod",
-        "Write-Warning",
-        "Start-Sleep",
-        "Sort-Object",
-        "Select-Object",
-        "Test-Path",
-        "Get-Content",
-        "Where-Object",
-        "Get-Location",
-        "Set-Location",
-        "Join-Path",
-        "Get-Item",
-        "Set-Content",
-        "ConvertFrom-Json",
-        "Get-CSharpInterface",
-        "ForEach-Object",
-        "Get-ChildItem",
-        "Split-Path"
+        "Read-Host"
       ]
     },
     "RepoMemory": {
@@ -350,23 +159,6 @@
         "GIT-AWARE"
       ]
     },
-    "CSharpAnalyser": {
-      "defines": [
-        "Get-CSharpSymbols",
-        "Get-CSharpInterface",
-        "Get-NuGetPackages",
-        "Get-DIRegistrations"
-      ],
-      "calls": [
-        "Test-Path",
-        "Get-Content",
-        "ForEach-Object",
-        "A-Z",
-        "Get-ChildItem",
-        "Join-Path",
-        "Where-Object"
-      ]
-    },
     "PluginLoader": {
       "defines": [
         "Initialize-Plugins",
@@ -389,68 +181,87 @@
         "Get-Content"
       ]
     },
-    "TokenBudget": {
+    "CSharpAnalyser": {
       "defines": [
-        "Add-TokenUsage",
-        "Get-TotalTokens",
-        "Get-CurrentCostGBP",
-        "Enforce-Budgets"
-      ],
-      "calls": []
-    },
-    "IntegrationTestGen": {
-      "defines": [
-        "Get-ApiControllers",
-        "Get-ControllerEndpoints",
-        "Get-IntegrationTestScaffold"
+        "tries",
+        "Invoke-RoslynTool",
+        "ConvertTo-Hashtable",
+        "Get-CSharpSymbols",
+        "Get-CSharpInterface",
+        "Get-NuGetPackages",
+        "Get-DIRegistrations",
+        "Get-CSharpSymbolsRegex",
+        "Get-CSharpInterfaceRegex",
+        "Get-NuGetPackagesRegex",
+        "Get-DIRegistrationsRegex"
       ],
       "calls": [
-        "Get-CSharpSymbols",
+        "Join-Path",
+        "Test-Path",
+        "Get-Command",
+        "ConvertFrom-Json",
+        "ForEach-Object",
+        "Get-Content",
+        "A-Z",
+        "Find-SourceFiles",
+        "Get-ChildItem",
+        "Where-Object"
+      ]
+    },
+    "ConfigLoader": {
+      "defines": [
+        "Load-ForgeConfig",
+        "Test-ForgeConfig"
+      ],
+      "calls": [
+        "Join-Path",
+        "Test-Path",
+        "Get-Content",
+        "ConvertFrom-Json",
+        "Write-Warning"
+      ]
+    },
+    "DependencyGraph": {
+      "defines": [
+        "Get-ProjectDependencies",
+        "Get-SolutionGraph",
+        "Get-TestOrder"
+      ],
+      "calls": [
         "Test-Path",
         "Write-Warning",
+        "Get-Content",
+        "ForEach-Object",
+        "Split-Path",
+        "Join-Path",
+        "Where-Object",
+        "Sort-Object"
+      ]
+    },
+    "RepoTools": {
+      "defines": [
+        "Score-File",
+        "Find-SourceFiles",
+        "Search-Files",
+        "Search-Hybrid",
+        "Open-File",
+        "Show-Diff"
+      ],
+      "calls": [
+        "Get-RelevanceScore",
+        "Test-Path",
         "ForEach-Object",
         "Join-Path",
         "Get-ChildItem",
         "Where-Object",
-        "Get-Content",
-        "Sort-Object",
         "Select-Object",
-        "A-Z"
-      ]
-    },
-    "CostEstimator": {
-      "defines": [
-        "Estimate-RunCost",
-        "Format-CostEstimate",
-        "Confirm-CostThreshold"
-      ],
-      "calls": [
-        "Test-Path",
-        "Get-ChildItem",
-        "Where-Object",
-        "Get-Content",
-        "Measure-Object",
         "Write-Warning",
-        "Split-Path",
-        "Write-Host",
-        "Read-Host"
-      ]
-    },
-    "TestStyleDetector": {
-      "defines": [
-        "Detect-TestStyle",
-        "Get-TestStylePrompt"
-      ],
-      "calls": [
-        "Test-Path",
-        "Write-Warning",
-        "Get-ChildItem",
-        "Where-Object",
-        "ForEach-Object",
-        "Get-Content",
         "Sort-Object",
-        "Select-Object",
-        "Arrange-Act"
+        "Invoke-SemanticSearch",
+        "Resolve-Path",
+        "Convert-Path",
+        "Mark-Relevant",
+        "Get-Content"
       ]
     },
     "CoverageAnalyser": {
@@ -475,85 +286,6 @@
         "Where-Object",
         "Sort-Object",
         "Select-Object"
-      ]
-    },
-    "MetricsTracker": {
-      "defines": [
-        "Initialize-Metrics",
-        "Add-MetricEvent",
-        "Save-Metrics",
-        "Get-MetricsSummary",
-        "Save-SuccessMetrics",
-        "Get-SuccessHistory",
-        "Get-SuccessTrend",
-        "Export-MetricsHtml"
-      ],
-      "calls": [
-        "Get-Date",
-        "Write-Host",
-        "Write-Warning",
-        "Get-TotalTokens",
-        "Get-CurrentCostGBP",
-        "Where-Object",
-        "Split-Path",
-        "Test-Path",
-        "New-Item",
-        "Out-Null",
-        "ConvertTo-Json",
-        "Out-File",
-        "Join-Path",
-        "Select-Object",
-        "Get-Content",
-        "ConvertFrom-Json",
-        "Get-ChildItem",
-        "Sort-Object",
-        "ForEach-Object",
-        "Measure-Object"
-      ]
-    },
-    "StrykerRunner": {
-      "defines": [
-        "Invoke-StrykerAnalysis",
-        "Get-SurvivingMutants",
-        "Get-MutantKillHypotheses"
-      ],
-      "calls": [
-        "Test-Path",
-        "Write-Warning",
-        "Start-Job",
-        "Set-Location",
-        "Wait-Job",
-        "Stop-Job",
-        "Remove-Job",
-        "Receive-Job",
-        "Join-Path",
-        "Get-ChildItem",
-        "Sort-Object",
-        "Select-Object",
-        "Get-Content",
-        "ConvertFrom-Json",
-        "ForEach-Object"
-      ]
-    },
-    "AzureAgent": {
-      "defines": [
-        "Invoke-AzureAgent",
-        "Invoke-AzureAgentStream",
-        "calling",
-        "Invoke-AzureAgentWithTools"
-      ],
-      "calls": [
-        "ConvertTo-Json",
-        "Content-Type",
-        "Write-Host",
-        "Invoke-RestMethod",
-        "New-Object",
-        "Invoke-WebRequest",
-        "Write-Warning",
-        "Start-Sleep",
-        "Add-TokenUsage",
-        "ConvertFrom-Json",
-        "ForEach-Object"
       ]
     },
     "RedisCache": {
@@ -603,6 +335,500 @@
         "Where-Object"
       ]
     },
+    "ImportGraph": {
+      "defines": [
+        "Get-Imports"
+      ],
+      "calls": [
+        "Test-Path",
+        "Get-Content",
+        "Where-Object",
+        "ForEach-Object",
+        "Select-Object"
+      ]
+    },
+    "PatternLibrary": {
+      "defines": [
+        "Save-TestPattern",
+        "Get-TestPatterns",
+        "Match-TestPattern"
+      ],
+      "calls": [
+        "Write-Warning",
+        "Join-Path",
+        "Test-Path",
+        "New-Item",
+        "Out-Null",
+        "Get-Content",
+        "ConvertFrom-Json",
+        "Get-Date",
+        "ConvertTo-Json",
+        "Set-Content",
+        "Sort-Object",
+        "Select-Object"
+      ]
+    },
+    "Embeddings": {
+      "defines": [
+        "Get-Embedding",
+        "Get-CosineSimilarity",
+        "Search-Embeddings",
+        "Split-CSharpFile",
+        "Split-LargeChunk",
+        "Build-EmbeddingIndex",
+        "Load-EmbeddingIndex",
+        "Invoke-SemanticSearch",
+        "Get-RAGContext",
+        "Update-EmbeddingIndex",
+        "Build-TestMapping",
+        "Get-SolutionGraph"
+      ],
+      "calls": [
+        "ConvertTo-Json",
+        "Content-Type",
+        "A-Za",
+        "Invoke-RestMethod",
+        "Write-Warning",
+        "Start-Sleep",
+        "Sort-Object",
+        "Select-Object",
+        "Test-Path",
+        "Get-Content",
+        "Where-Object",
+        "Get-Location",
+        "Set-Location",
+        "Join-Path",
+        "Get-Item",
+        "Set-Content",
+        "ConvertFrom-Json",
+        "Get-CSharpInterface",
+        "ForEach-Object",
+        "Get-ChildItem",
+        "Split-Path"
+      ]
+    },
+    "TokenBudget": {
+      "defines": [
+        "Add-TokenUsage",
+        "Get-TotalTokens",
+        "Get-CurrentCostGBP",
+        "Enforce-Budgets"
+      ],
+      "calls": []
+    },
+    "AzureAgent": {
+      "defines": [
+        "Get-AzureAuthHeaders",
+        "Read-TokenUsage",
+        "Invoke-WithRetry",
+        "Read-ResponsesApiText",
+        "Redact-AzureResponse",
+        "-and",
+        "Invoke-AzureAgent",
+        "Invoke-AzureAgentStream",
+        "calling",
+        "Invoke-AzureAgentWithTools"
+      ],
+      "calls": [
+        "Content-Type",
+        "A-Za",
+        "Add-TokenUsage",
+        "New-Object",
+        "Write-Host",
+        "Write-Warning",
+        "Start-Sleep",
+        "ConvertTo-Json",
+        "ConvertFrom-Json",
+        "Invoke-RestMethod",
+        "Join-Path",
+        "Get-Location",
+        "Test-Path",
+        "New-Item",
+        "Out-Null",
+        "Get-Date",
+        "Out-File",
+        "ForEach-Object"
+      ]
+    },
+    "Orchestrator": {
+      "defines": [
+        "calling",
+        "New-AgentError",
+        "Invoke-WriteFile",
+        "Invoke-RunTests",
+        "Invoke-ReadTestOutput",
+        "Invoke-GetCoverage",
+        "Invoke-ExplainError",
+        "Invoke-ListTests",
+        "Run-Agent",
+        "calling",
+        "Build-ToolDefinitions",
+        "calling",
+        "Invoke-ToolCall",
+        "calling",
+        "Run-AgentWithFunctionCalling"
+      ],
+      "calls": [
+        "Get-Date",
+        "Resolve-Path",
+        "Join-Path",
+        "Split-Path",
+        "Test-Path",
+        "New-Item",
+        "Out-Null",
+        "Out-File",
+        "Measure-Object",
+        "Start-Job",
+        "Out-String",
+        "Wait-Job",
+        "Stop-Job",
+        "Remove-Job",
+        "Receive-Job",
+        "ConvertTo-Json",
+        "Get-ChildItem",
+        "Where-Object",
+        "Sort-Object",
+        "Get-Content",
+        "Write-DebugLog",
+        "Invoke-AzureAgent",
+        "Get-Location",
+        "ConvertFrom-Json",
+        "Search-Files",
+        "Open-File",
+        "Get-Imports",
+        "Get-ConstructorDependencies",
+        "Show-Diff",
+        "Get-CSharpSymbols",
+        "ForEach-Object",
+        "Get-CSharpInterface",
+        "Get-NuGetPackages",
+        "Get-DIRegistrations",
+        "Get-Command",
+        "Invoke-SemanticSearch",
+        "Search-Embeddings",
+        "Invoke-AzureAgentWithTools"
+      ]
+    },
+    "MockScaffolder": {
+      "defines": [
+        "Get-MockScaffold",
+        "Get-MockSetupLine",
+        "Get-DefaultValue",
+        "Get-MockScaffoldContext"
+      ],
+      "calls": [
+        "Get-CSharpSymbols",
+        "Get-CSharpInterface",
+        "Test-Path",
+        "Write-Warning",
+        "Sort-Object",
+        "Select-Object",
+        "A-Z"
+      ]
+    },
+    "DebugLogger": {
+      "defines": [
+        "Init-Debug",
+        "Write-DebugLog"
+      ],
+      "calls": [
+        "Resolve-Path",
+        "Get-Location",
+        "Join-Path",
+        "Test-Path",
+        "New-Item",
+        "Out-Null",
+        "Get-Date",
+        "Get-Item",
+        "Remove-Item",
+        "Move-Item",
+        "ConvertTo-Json",
+        "Out-File"
+      ]
+    },
+    "FeedbackLoop": {
+      "defines": [
+        "Invoke-FeedbackCapture",
+        "Get-TaskLearnings",
+        "Should-Replan",
+        "Update-TaskFromFeedback"
+      ],
+      "calls": [
+        "Get-Date",
+        "Update-Heuristics",
+        "Write-Warning",
+        "Save-RunState",
+        "Save-ConversationTurn",
+        "Get-Command",
+        "Save-GlobalPattern",
+        "Trace-AgentDecision",
+        "Add-MetricEvent",
+        "Where-Object",
+        "Select-Object"
+      ]
+    },
+    "StrykerRunner": {
+      "defines": [
+        "Invoke-StrykerAnalysis",
+        "Get-SurvivingMutants",
+        "Get-MutantKillHypotheses"
+      ],
+      "calls": [
+        "Test-Path",
+        "Write-Warning",
+        "Start-Job",
+        "Set-Location",
+        "Wait-Job",
+        "Stop-Job",
+        "Remove-Job",
+        "Receive-Job",
+        "Join-Path",
+        "Get-ChildItem",
+        "Sort-Object",
+        "Select-Object",
+        "Get-Content",
+        "ConvertFrom-Json",
+        "ForEach-Object"
+      ]
+    },
+    "WorkerDispatch": {
+      "defines": [
+        "Invoke-WorkerDispatch",
+        "Select-AgentPrompt",
+        "Select-Deployment",
+        "Get-WorkerToolPermissions",
+        "Invoke-ParallelWorkers",
+        "Confirm-WorkerOutput"
+      ],
+      "calls": [
+        "Run-Agent",
+        "Run-AgentWithFunctionCalling",
+        "Write-Warning",
+        "Write-Host",
+        "Join-Path",
+        "Test-Path",
+        "Get-Content",
+        "Where-Object",
+        "Start-Job",
+        "ForEach-Object",
+        "Wait-Job",
+        "Receive-Job",
+        "Stop-Job",
+        "Remove-Job"
+      ]
+    },
+    "RoslynAnalyser": {
+      "defines": [
+        "tries",
+        "Get-MethodAnalysis",
+        "Get-ClassComplexity",
+        "Get-ThrowStatements",
+        "Get-MethodAnalysisRegex",
+        "Get-ClassComplexityRegex",
+        "Get-ThrowStatementsRegex"
+      ],
+      "calls": [
+        "Invoke-RoslynTool",
+        "ConvertTo-Hashtable",
+        "Test-Path",
+        "Write-Warning",
+        "Get-Content",
+        "ForEach-Object",
+        "A-Z"
+      ]
+    },
+    "DecisionTrace": {
+      "defines": [
+        "Initialize-DecisionTrace",
+        "Trace-AgentDecision",
+        "Get-DecisionTrace",
+        "Export-DecisionTrace",
+        "Get-DecisionSummary"
+      ],
+      "calls": [
+        "Join-Path",
+        "Test-Path",
+        "New-Item",
+        "Out-Null",
+        "Get-Date",
+        "Split-Path",
+        "Write-Host",
+        "ConvertTo-Json",
+        "Out-File",
+        "Write-Warning",
+        "Where-Object",
+        "Select-Object",
+        "ForEach-Object",
+        "Measure-Object"
+      ]
+    },
+    "RelevanceTracker": {
+      "defines": [
+        "Mark-Relevant",
+        "Get-RelevanceScore"
+      ],
+      "calls": []
+    },
+    "TaskOrchestrator": {
+      "defines": [
+        "New-ForgeTask",
+        "Start-TaskOrchestration",
+        "Invoke-TaskDecomposition",
+        "Parse-TaskPlan",
+        "Test-TaskDependencies",
+        "Visit-Task",
+        "Invoke-TaskStep",
+        "Get-NextTask",
+        "Add-DynamicTask",
+        "Invoke-ReplanIfNeeded",
+        "Build-OrchestratorContext"
+      ],
+      "calls": [
+        "Get-Date",
+        "Write-Host",
+        "Enforce-Budgets",
+        "Where-Object",
+        "Invoke-FeedbackCapture",
+        "Should-Replan",
+        "Get-TaskLearnings",
+        "Join-Path",
+        "Test-Path",
+        "Write-Warning",
+        "Get-Content",
+        "Invoke-AzureAgent",
+        "ConvertFrom-Json",
+        "Invoke-ContextRetrieval",
+        "Invoke-WorkerDispatch",
+        "ForEach-Object",
+        "Out-String",
+        "Get-MemorySummary",
+        "Get-TotalTokens",
+        "Get-CurrentCostGBP"
+      ]
+    },
+    "MetricsTracker": {
+      "defines": [
+        "Initialize-Metrics",
+        "Add-MetricEvent",
+        "Save-Metrics",
+        "Get-MetricsSummary",
+        "Save-SuccessMetrics",
+        "Get-SuccessHistory",
+        "Get-SuccessTrend",
+        "Export-MetricsHtml"
+      ],
+      "calls": [
+        "Get-Date",
+        "Write-Host",
+        "Write-Warning",
+        "Join-Path",
+        "Get-Location",
+        "Get-TotalTokens",
+        "Get-CurrentCostGBP",
+        "Where-Object",
+        "Split-Path",
+        "Test-Path",
+        "New-Item",
+        "Out-Null",
+        "ConvertTo-Json",
+        "Out-File",
+        "Select-Object",
+        "Get-Content",
+        "ConvertFrom-Json",
+        "Get-ChildItem",
+        "Sort-Object",
+        "ForEach-Object",
+        "Measure-Object"
+      ]
+    },
+    "TestDataBuilder": {
+      "defines": [
+        "Get-EntityClasses",
+        "Get-TestDataBuilder",
+        "Get-BuilderDefaultValue",
+        "Get-AllBuilders"
+      ],
+      "calls": [
+        "Get-CSharpSymbols",
+        "Test-Path",
+        "Write-Warning",
+        "Find-SourceFiles",
+        "Get-Content",
+        "Where-Object",
+        "A-Z",
+        "Sort-Object",
+        "New-Item",
+        "Out-Null",
+        "Join-Path",
+        "Set-Content"
+      ]
+    },
+    "RetrievalAgent": {
+      "defines": [
+        "Invoke-ContextRetrieval",
+        "Invoke-SemanticRetrieval",
+        "Invoke-FallbackRetrieval",
+        "Invoke-MemoryRetrieval",
+        "Invoke-StructuralRetrieval",
+        "Get-FilesFromContext",
+        "Get-PriorTaskResults",
+        "Build-TaskContext"
+      ],
+      "calls": [
+        "Invoke-SemanticSearch",
+        "Write-Warning",
+        "Where-Object",
+        "Select-Object",
+        "Search-Files",
+        "Get-TotalTokens",
+        "Get-CurrentCostGBP",
+        "Read-MemoryFile",
+        "Get-MemorySummary",
+        "Get-SuggestedFix",
+        "Test-Path",
+        "Get-CSharpSymbols",
+        "Get-Imports",
+        "Get-ConstructorDependencies",
+        "Get-CSharpInterface"
+      ]
+    },
+    "CallGraph": {
+      "defines": [
+        "Get-ConstructorDependencies"
+      ],
+      "calls": [
+        "Test-Path",
+        "Get-Content",
+        "Select-String",
+        "Select-Object"
+      ]
+    },
+    "IntegrationTestGen": {
+      "defines": [
+        "Get-DtoProperties",
+        "Get-NullMockSetupLine",
+        "Get-ApiControllers",
+        "Get-ControllerEndpoints",
+        "Get-IntegrationTestScaffold"
+      ],
+      "calls": [
+        "Test-Path",
+        "ForEach-Object",
+        "Join-Path",
+        "Get-ChildItem",
+        "Where-Object",
+        "Get-CSharpSymbols",
+        "Write-Warning",
+        "Find-SourceFiles",
+        "Get-Content",
+        "Sort-Object",
+        "Select-Object",
+        "A-Z",
+        "Get-CSharpInterface",
+        "Get-MockSetupLine",
+        "Get-BuilderDefaultValue"
+      ]
+    },
     "FoundryAgent": {
       "defines": [
         "Initialize-FoundryAgent",
@@ -621,64 +847,18 @@
         "Out-Null",
         "Add-TokenUsage"
       ]
+    },
+    "EdgeCaseGenerator": {
+      "defines": [
+        "Get-EdgeCases",
+        "Get-TypeEdgeCases",
+        "Get-EdgeCaseContext"
+      ],
+      "calls": [
+        "Get-CSharpSymbols",
+        "Write-Warning",
+        "Test-Path"
+      ]
     }
-  },
-  "testToCodeMap": {
-    "Orchestrator.Tests": [
-      "lib/Orchestrator.ps1"
-    ],
-    "RepoMemory.Tests": [
-      "lib/RepoMemory.ps1"
-    ],
-    "TokenBudget.Tests": [
-      "lib/TokenBudget.ps1"
-    ],
-    "RepoTools.Tests": [
-      "lib/RepoTools.ps1"
-    ],
-    "TestStyleDetector.Tests": [
-      "lib/TestStyleDetector.ps1"
-    ],
-    "AzureAgent.Tests": [
-      "lib/AzureAgent.ps1"
-    ],
-    "RedisCache.Tests": [
-      "lib/RedisCache.ps1"
-    ],
-    "CSharpAnalyser.Tests": [
-      "lib/CSharpAnalyser.ps1"
-    ],
-    "ConfigLoader.Tests": [
-      "lib/ConfigLoader.ps1"
-    ],
-    "DebugLogger.Tests": [
-      "lib/DebugLogger.ps1"
-    ],
-    "Embeddings.Tests": [
-      "lib/Embeddings.ps1"
-    ]
-  },
-  "recentlyChanged": [
-    "lib/RepoMemory.ps1",
-    "TODO.md",
-    "agents/builder.system.txt",
-    "agents/judge.system.txt",
-    "agents/reviewer.system.txt",
-    "agents/tools.system.txt",
-    "forge.config.json",
-    "lib/AzureAgent.ps1",
-    "lib/CSharpAnalyser.ps1",
-    "lib/ConfigLoader.ps1",
-    "lib/CostEstimator.ps1",
-    "lib/CoverageAnalyser.ps1",
-    "lib/DecisionTrace.ps1",
-    "lib/DependencyGraph.ps1",
-    "lib/EdgeCaseGenerator.ps1",
-    "lib/Embeddings.ps1",
-    "lib/FoundryAgent.ps1",
-    "lib/IntegrationTestGen.ps1",
-    "lib/MetricsTracker.ps1",
-    "lib/MockScaffolder.ps1"
-  ],
-  "failingTestToCode": {}
+  }
 }
