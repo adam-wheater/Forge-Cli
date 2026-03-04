@@ -80,7 +80,7 @@ Describe 'Run-Agent' {
 
 Describe 'Invoke-ExplainError' {
     It 'Extracts LikelyFile from error message' {
-        $result = Invoke-ExplainError -ErrorText "Error at MyFile.cs:10"
+        $result = Invoke-ExplainError -ErrorText "Error in MyFile.cs:10"
         $result | Should -Match 'LikelyFile: MyFile.cs'
     }
 
@@ -98,9 +98,9 @@ Describe 'Invoke-ExplainError' {
     ) {
         param($ErrorText, $Category, $Explanation)
         $result = Invoke-ExplainError -ErrorText $ErrorText
-        $result | Should -Match "$Category: "
+        $result | Should -Match "${Category}: "
         if ($Explanation) {
-            $result | Should -Match [regex]::Escape($Explanation)
+            $result | Should -Match ([regex]::Escape($Explanation))
         }
     }
 }

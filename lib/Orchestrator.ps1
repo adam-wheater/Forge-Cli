@@ -102,9 +102,10 @@ function Invoke-RunTests {
         $output = $job | Receive-Job
         $job | Remove-Job -Force
 
+        # BOLT OPTIMIZATION: Use List[T] instead of += for O(1) amortized insertions
         $result = @{
-            Passed    = @()
-            Failed    = @()
+            Passed    = [System.Collections.Generic.List[string]]::new()
+            Failed    = [System.Collections.Generic.List[hashtable]]::new()
             Total     = 0
             PassCount = 0
             FailCount = 0
@@ -113,18 +114,18 @@ function Invoke-RunTests {
         # Parse passed tests
         $passMatches = [regex]::Matches($output, 'Passed\s+([\w.]+)')
         foreach ($m in $passMatches) {
-            $result.Passed += $m.Groups[1].Value
+            $result.Passed.Add($m.Groups[1].Value)
         }
 
         # Parse failed tests
         $failPattern = 'Failed\s+([\w.]+)\s*.*?Message:\s*(.+?)(?:Stack Trace:\s*(.+?))?(?=Failed\s+|$)'
         $failMatches = [regex]::Matches($output, $failPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
         foreach ($m in $failMatches) {
-            $result.Failed += @{
+            $result.Failed.Add(@{
                 Name       = $m.Groups[1].Value
                 Message    = $m.Groups[2].Value.Trim()
                 StackTrace = if ($m.Groups[3].Value) { $m.Groups[3].Value.Trim() } else { "" }
-            }
+            })
         }
 
         # Parse summary line: "Total tests: X, Passed: Y, Failed: Z"
@@ -163,7 +164,8 @@ function Invoke-ReadTestOutput {
         [xml]$trx = Get-Content $trxPath -Raw
 
         $ns = @{ t = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010" }
-        $results = @()
+        # BOLT OPTIMIZATION: Use List[T] instead of += for O(1) amortized insertions
+        $results = [System.Collections.Generic.List[hashtable]]::new()
 
         $testResults = $trx.TestRun.Results.UnitTestResult
         if (-not $testResults) {
@@ -181,7 +183,7 @@ function Invoke-ReadTestOutput {
                 $entry.StackTrace = if ($tr.Output.ErrorInfo.StackTrace) { $tr.Output.ErrorInfo.StackTrace } else { "" }
             }
 
-            $results += $entry
+            $results.Add($entry)
         }
 
         return ($results | ConvertTo-Json -Depth 5 -Compress)
@@ -223,7 +225,8 @@ function Invoke-GetCoverage {
 
         [xml]$coverage = Get-Content $coverageFiles[0].FullName -Raw
 
-        $lines = @()
+        # BOLT OPTIMIZATION: Use List[T] instead of += for O(1) amortized insertions
+        $lines = [System.Collections.Generic.List[string]]::new()
         $packages = $coverage.coverage.packages.package
         if (-not $packages) {
             return "COVERAGE_NOT_AVAILABLE: No coverage data found in report"
@@ -238,35 +241,35 @@ function Invoke-GetCoverage {
                 $lineRate = [math]::Round([double]$cls.'line-rate' * 100, 1)
 
                 # Find uncovered lines
-                $uncovered = @()
+                $uncovered = [System.Collections.Generic.List[int]]::new()
                 if ($cls.lines -and $cls.lines.line) {
                     foreach ($line in $cls.lines.line) {
                         if ([int]$line.hits -eq 0) {
-                            $uncovered += [int]$line.number
+                            $uncovered.Add([int]$line.number)
                         }
                     }
                 }
 
                 # Group consecutive uncovered lines into ranges
-                $ranges = @()
+                $ranges = [System.Collections.Generic.List[string]]::new()
                 if ($uncovered.Count -gt 0) {
-                    $uncovered = $uncovered | Sort-Object
+                    $uncovered.Sort()
                     $start = $uncovered[0]
                     $end = $uncovered[0]
                     for ($i = 1; $i -lt $uncovered.Count; $i++) {
                         if ($uncovered[$i] -eq $end + 1) {
                             $end = $uncovered[$i]
                         } else {
-                            $ranges += if ($start -eq $end) { "$start" } else { "$start-$end" }
+                            $ranges.Add($(if ($start -eq $end) { "$start" } else { "$start-$end" }))
                             $start = $uncovered[$i]
                             $end = $uncovered[$i]
                         }
                     }
-                    $ranges += if ($start -eq $end) { "$start" } else { "$start-$end" }
+                    $ranges.Add($(if ($start -eq $end) { "$start" } else { "$start-$end" }))
                 }
 
                 $uncoveredStr = if ($ranges.Count -gt 0) { ", uncovered lines: $($ranges -join ', ')" } else { "" }
-                $lines += "CLASS: $className — ${lineRate}% covered${uncoveredStr}"
+                $lines.Add("CLASS: $className — ${lineRate}% covered${uncoveredStr}")
             }
         }
 
@@ -386,7 +389,8 @@ function Invoke-ListTests {
         $output = & dotnet test $RepoRoot --list-tests --verbosity quiet 2>&1 | Out-String
 
         # Parse output to extract test method names
-        $testNames = @()
+        # BOLT OPTIMIZATION: Use List[T] instead of += for O(1) amortized insertions
+        $testNames = [System.Collections.Generic.List[string]]::new()
         $inList = $false
         foreach ($line in $output -split "`n") {
             $trimmed = $line.Trim()
@@ -395,7 +399,7 @@ function Invoke-ListTests {
                 continue
             }
             if ($inList -and $trimmed -ne '' -and $trimmed -notmatch '^(Test run|Microsoft|$)') {
-                $testNames += $trimmed
+                $testNames.Add($trimmed)
             }
         }
 
@@ -419,15 +423,15 @@ function Invoke-ListTests {
             }
 
             if (-not $grouped.ContainsKey($classShort)) {
-                $grouped[$classShort] = @()
+                $grouped[$classShort] = [System.Collections.Generic.List[string]]::new()
             }
-            $grouped[$classShort] += $methodName
+            $grouped[$classShort].Add($methodName)
         }
 
-        $lines = @()
+        $lines = [System.Collections.Generic.List[string]]::new()
         foreach ($cls in $grouped.Keys | Sort-Object) {
             $methods = $grouped[$cls] -join ", "
-            $lines += "${cls}: $methods"
+            $lines.Add("${cls}: $methods")
         }
 
         return ($lines -join "`n")
