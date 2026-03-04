@@ -50,7 +50,11 @@ function Invoke-WriteFile {
         $fullPath = [System.IO.Path]::GetFullPath($fullPath)
 
         # Validate: path must be within RepoRoot
-        if (-not $fullPath.StartsWith($resolvedRepo)) {
+        $repoRootWithSep = $resolvedRepo
+        if (-not $repoRootWithSep.EndsWith([System.IO.Path]::DirectorySeparatorChar.ToString()) -and -not $repoRootWithSep.EndsWith([System.IO.Path]::AltDirectorySeparatorChar.ToString())) {
+            $repoRootWithSep += [System.IO.Path]::DirectorySeparatorChar
+        }
+        if (-not $fullPath.StartsWith($repoRootWithSep) -and $fullPath -ne $resolvedRepo) {
             return "WRITE_FAILED: Path '$Path' is outside the repository root"
         }
 
