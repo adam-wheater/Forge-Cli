@@ -3,16 +3,24 @@ function Get-ConstructorDependencies {
     if (-not (Test-Path $Path)) { return @() }
 
     $content = Get-Content $Path -Raw
-    $matches = Select-String -InputObject $content -Pattern 'public\s+\w+\s*\(([^)]*)\)' -AllMatches
+    $matches = [regex]::Matches($content, 'public\s+\w+\s*\(([^)]*)\)')
 
-    $deps = @()
-    foreach ($m in $matches.Matches) {
+    # Optimisation: Use HashSet for fast unique collection, avoid += array concatenation
+    $deps = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($m in $matches) {
         $params = $m.Groups[1].Value -split ','
         foreach ($p in $params) {
-            $type = ($p.Trim() -split '\s+')[0]
-            if ($type) { $deps += $type }
+            $trimmed = $p.Trim()
+            if (-not $trimmed) { continue }
+
+            # Fast path: split by any whitespace character using regex, but take only the first item
+            $type = ($trimmed -split '\s+')[0]
+            if ($type) {
+                $null = $deps.Add($type)
+            }
         }
     }
 
-    $deps | Select-Object -Unique
+    [string[]]$deps
 }
