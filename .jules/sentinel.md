@@ -1,6 +1,4 @@
-# Sentinel's Journal
-
-## 2024-05-23 - [Weak Regex for JSON Sanitization]
-**Vulnerability:** The regex `(?i)(api-key|password|secret|token)\s*[:=]\s*\S+` used to sanitize logs failed to match JSON-formatted secrets like `"api-key": "value"`, potentially leaking sensitive information in error logs.
-**Learning:** Simple key-value regexes often miss structured data formats like JSON, especially when quotes and whitespace are involved.
-**Prevention:** Use more robust regexes that account for quotes and different separators, or parse the structured data before sanitization if possible.
+## 2024-03-05 - Insecure String Prefix Checks For Path Validation
+**Vulnerability:** Sibling Directory Traversal / Arbitrary File Write. Path validation logic using `StartsWith` (like `$fullPath.StartsWith($repoRoot)`) allowed writing to sibling directories (e.g., `/app/repo-backup`) when the repository root was `/app/repo`, because the prefix match didn't guarantee a directory boundary.
+**Learning:** `StartsWith` is insufficient for path boundary validation unless both paths are normalized and the base path is guaranteed to end with a directory separator (`/` or `\`).
+**Prevention:** Always normalize paths using `[System.IO.Path]::GetFullPath()`, ensure consistent directory separators (e.g. `.Replace('\', '/')`), and enforce a trailing slash on the reference path before performing a `.StartsWith()` check.
