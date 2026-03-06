@@ -98,7 +98,7 @@ Describe 'Invoke-ExplainError' {
     ) {
         param($ErrorText, $Category, $Explanation)
         $result = Invoke-ExplainError -ErrorText $ErrorText
-        $result | Should -Match "$Category: "
+        $result | Should -Match "${Category}: "
         if ($Explanation) {
             $result | Should -Match [regex]::Escape($Explanation)
         }

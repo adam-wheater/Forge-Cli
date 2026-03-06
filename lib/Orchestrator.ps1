@@ -223,7 +223,7 @@ function Invoke-GetCoverage {
 
         [xml]$coverage = Get-Content $coverageFiles[0].FullName -Raw
 
-        $lines = @()
+        $lines = [System.Collections.Generic.List[string]]::new()
         $packages = $coverage.coverage.packages.package
         if (-not $packages) {
             return "COVERAGE_NOT_AVAILABLE: No coverage data found in report"
@@ -238,17 +238,17 @@ function Invoke-GetCoverage {
                 $lineRate = [math]::Round([double]$cls.'line-rate' * 100, 1)
 
                 # Find uncovered lines
-                $uncovered = @()
+                $uncovered = [System.Collections.Generic.List[int]]::new()
                 if ($cls.lines -and $cls.lines.line) {
                     foreach ($line in $cls.lines.line) {
                         if ([int]$line.hits -eq 0) {
-                            $uncovered += [int]$line.number
+                            $uncovered.Add([int]$line.number)
                         }
                     }
                 }
 
                 # Group consecutive uncovered lines into ranges
-                $ranges = @()
+                $ranges = [System.Collections.Generic.List[string]]::new()
                 if ($uncovered.Count -gt 0) {
                     $uncovered = $uncovered | Sort-Object
                     $start = $uncovered[0]
@@ -257,20 +257,20 @@ function Invoke-GetCoverage {
                         if ($uncovered[$i] -eq $end + 1) {
                             $end = $uncovered[$i]
                         } else {
-                            $ranges += if ($start -eq $end) { "$start" } else { "$start-$end" }
+                            $ranges.Add($(if ($start -eq $end) { "$start" } else { "$start-$end" }))
                             $start = $uncovered[$i]
                             $end = $uncovered[$i]
                         }
                     }
-                    $ranges += if ($start -eq $end) { "$start" } else { "$start-$end" }
+                    $ranges.Add($(if ($start -eq $end) { "$start" } else { "$start-$end" }))
                 }
 
                 $uncoveredStr = if ($ranges.Count -gt 0) { ", uncovered lines: $($ranges -join ', ')" } else { "" }
-                $lines += "CLASS: $className — ${lineRate}% covered${uncoveredStr}"
+                $lines.Add("CLASS: $className — ${lineRate}% covered${uncoveredStr}")
             }
         }
 
-        return ($lines -join "`n")
+        return ($lines.ToArray() -join "`n")
     } catch {
         return "COVERAGE_FAILED: $($_.Exception.Message)"
     }
@@ -419,18 +419,18 @@ function Invoke-ListTests {
             }
 
             if (-not $grouped.ContainsKey($classShort)) {
-                $grouped[$classShort] = @()
+                $grouped[$classShort] = [System.Collections.Generic.List[string]]::new()
             }
-            $grouped[$classShort] += $methodName
+            $grouped[$classShort].Add($methodName)
         }
 
-        $lines = @()
+        $lines = [System.Collections.Generic.List[string]]::new()
         foreach ($cls in $grouped.Keys | Sort-Object) {
             $methods = $grouped[$cls] -join ", "
-            $lines += "${cls}: $methods"
+            $lines.Add("${cls}: $methods")
         }
 
-        return ($lines -join "`n")
+        return ($lines.ToArray() -join "`n")
     } catch {
         return "LIST_TESTS_FAILED: $($_.Exception.Message)"
     }
