@@ -4,17 +4,39 @@ function Score-File {
     param ([Parameter(Mandatory)][string]$Path)
 
     $score = 0
-    # Optimisation: Use switch -Regex for single-pass matching
-    switch -Regex ($Path) {
-        'Test|Tests' { $score += 50 }
-        'Service|Controller|Manager|Repository|Repo' { $score += 15 }
-        '\.cs$' { $score += 5 }
-        '\.ps1$' { $score += 5 }
-        '\.Tests\.ps1$' { $score += 50 }
-        'Module|Orchestrator|Agent' { $score += 15 }
-        '\.system\.txt$' { $score += 10 }
-        'Program|Startup' { $score -= 10 }
+
+    # Optimisation: Use EndsWith/IndexOf instead of regex where possible for performance
+
+    # Check extensions
+    if ($Path.EndsWith('.cs', [System.StringComparison]::OrdinalIgnoreCase)) {
+        $score += 5
+    } elseif ($Path.EndsWith('.ps1', [System.StringComparison]::OrdinalIgnoreCase)) {
+        $score += 5
+        if ($Path.EndsWith('.Tests.ps1', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $score += 50
+        }
+    } elseif ($Path.EndsWith('.system.txt', [System.StringComparison]::OrdinalIgnoreCase)) {
+        $score += 10
     }
+
+    # 'Test|Tests' -> simple check for 'Test' covers both.
+    if ($Path.IndexOf('Test', [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+        $score += 50
+    }
+
+    # 'Service|Controller|Manager|Repository|Repo'
+    if ($Path -match 'Service|Controller|Manager|Repository|Repo') {
+        $score += 15
+    }
+
+    # 'Module|Orchestrator|Agent'
+    if ($Path -match 'Module|Orchestrator|Agent') {
+        $score += 15
+    }
+
+    # 'Program|Startup'
+    if ($Path -match 'Program|Startup') { $score -= 10 }
+
     $score -= (Get-RelevanceScore $Path)
     $score
 }
