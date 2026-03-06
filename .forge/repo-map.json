@@ -1,155 +1,64 @@
 {
-  "coreModules": [
-    {
-      "name": "AzureAgent",
-      "path": ".\\lib\\AzureAgent.ps1"
-    },
-    {
-      "name": "CallGraph",
-      "path": ".\\lib\\CallGraph.ps1"
-    },
-    {
-      "name": "ConfigLoader",
-      "path": ".\\lib\\ConfigLoader.ps1"
-    },
-    {
-      "name": "CostEstimator",
-      "path": ".\\lib\\CostEstimator.ps1"
-    },
-    {
-      "name": "CoverageAnalyser",
-      "path": ".\\lib\\CoverageAnalyser.ps1"
-    },
-    {
-      "name": "CSharpAnalyser",
-      "path": ".\\lib\\CSharpAnalyser.ps1"
-    },
-    {
-      "name": "DebugLogger",
-      "path": ".\\lib\\DebugLogger.ps1"
-    },
-    {
-      "name": "DecisionTrace",
-      "path": ".\\lib\\DecisionTrace.ps1"
-    },
-    {
-      "name": "DependencyGraph",
-      "path": ".\\lib\\DependencyGraph.ps1"
-    },
-    {
-      "name": "EdgeCaseGenerator",
-      "path": ".\\lib\\EdgeCaseGenerator.ps1"
-    },
-    {
-      "name": "Embeddings",
-      "path": ".\\lib\\Embeddings.ps1"
-    },
-    {
-      "name": "FoundryAgent",
-      "path": ".\\lib\\FoundryAgent.ps1"
-    },
-    {
-      "name": "ImportGraph",
-      "path": ".\\lib\\ImportGraph.ps1"
-    },
-    {
-      "name": "IntegrationTestGen",
-      "path": ".\\lib\\IntegrationTestGen.ps1"
-    },
-    {
-      "name": "MetricsTracker",
-      "path": ".\\lib\\MetricsTracker.ps1"
-    },
-    {
-      "name": "MockScaffolder",
-      "path": ".\\lib\\MockScaffolder.ps1"
-    },
-    {
-      "name": "Orchestrator",
-      "path": ".\\lib\\Orchestrator.ps1"
-    },
-    {
-      "name": "PatternLibrary",
-      "path": ".\\lib\\PatternLibrary.ps1"
-    },
-    {
-      "name": "PluginLoader",
-      "path": ".\\lib\\PluginLoader.ps1"
-    },
-    {
-      "name": "RedisCache",
-      "path": ".\\lib\\RedisCache.ps1"
-    },
-    {
-      "name": "RelevanceTracker",
-      "path": ".\\lib\\RelevanceTracker.ps1"
-    },
-    {
-      "name": "RepoMemory",
-      "path": ".\\lib\\RepoMemory.ps1"
-    },
-    {
-      "name": "RepoTools",
-      "path": ".\\lib\\RepoTools.ps1"
-    },
-    {
-      "name": "RoslynAnalyser",
-      "path": ".\\lib\\RoslynAnalyser.ps1"
-    },
-    {
-      "name": "StrykerRunner",
-      "path": ".\\lib\\StrykerRunner.ps1"
-    },
-    {
-      "name": "TestDataBuilder",
-      "path": ".\\lib\\TestDataBuilder.ps1"
-    },
-    {
-      "name": "TestStyleDetector",
-      "path": ".\\lib\\TestStyleDetector.ps1"
-    },
-    {
-      "name": "TokenBudget",
-      "path": ".\\lib\\TokenBudget.ps1"
-    }
-  ],
-  "scripts": [],
-  "entryPoints": [
-    ".\\run.ps1"
-  ],
-  "projectType": "powershell",
-  "testProjects": [
-    ".\\tests\\AgentTools.Tests.ps1",
-    ".\\tests\\AzureAgent.Tests.ps1",
-    ".\\tests\\ConfigLoader.Tests.ps1",
-    ".\\tests\\CSharpAnalyser.Tests.ps1",
-    ".\\tests\\DebugLogger.Tests.ps1",
-    ".\\tests\\Embeddings.Tests.ps1",
-    ".\\tests\\Integration.Tests.ps1",
-    ".\\tests\\Orchestrator.Tests.ps1",
-    ".\\tests\\RedisCache.Tests.ps1",
-    ".\\tests\\RepoMemory.Tests.ps1",
-    ".\\tests\\RepoTools.Tests.ps1",
-    ".\\tests\\TestStyleDetector.Tests.ps1",
-    ".\\tests\\TokenBudget.Tests.ps1",
-    ".\\tests\\fixtures\\SampleApi\\tests\\SampleApi.Tests\\SampleApi.Tests.csproj",
-    ".\\tmp-sample-repo\\tests\\SampleApi.Tests\\SampleApi.Tests.csproj"
-  ],
   "agentPrompts": [
     "builder.system",
     "judge.system",
+    "orchestrator.system",
     "reviewer.system",
-    "tools.system"
+    "tools.system",
+    "worker.system"
   ],
+  "testProjects": [
+    "/app/tests/AzureAgent.Tests.ps1",
+    "/app/tests/CallGraph.Tests.ps1",
+    "/app/tests/ConfigLoader.Tests.ps1",
+    "/app/tests/CostEstimator.Tests.ps1",
+    "/app/tests/CSharpAnalyser.Tests.ps1",
+    "/app/tests/Embeddings.Tests.ps1",
+    "/app/tests/ExplainError.Tests.ps1",
+    "/app/tests/FeedbackLoop.Tests.ps1",
+    "/app/tests/Integration.Tests.ps1",
+    "/app/tests/MetricsTracker.Tests.ps1",
+    "/app/tests/Orchestrator.ExplainError.Tests.ps1",
+    "/app/tests/Orchestrator.Tests.ps1",
+    "/app/tests/PluginLoader.Tests.ps1",
+    "/app/tests/RedisCache.Tests.ps1",
+    "/app/tests/RepoMemory.Tests.ps1",
+    "/app/tests/RepoTools.Tests.ps1",
+    "/app/tests/repro_issue.Tests.ps1",
+    "/app/tests/RetrievalAgent.Tests.ps1",
+    "/app/tests/TaskOrchestrator.Tests.ps1",
+    "/app/tests/TestStyleDetector.Tests.ps1",
+    "/app/tests/TokenBudget.Tests.ps1",
+    "/app/tests/WorkerDispatch.Tests.ps1"
+  ],
+  "projectType": "powershell",
   "dependencies": {
-    "DebugLogger": [],
+    "TestStyleDetector": [],
+    "CostEstimator": [
+      "TokenBudget",
+      "ConfigLoader"
+    ],
+    "RepoMemory": [],
+    "PluginLoader": [],
+    "CSharpAnalyser": [
+      "RepoTools"
+    ],
     "ConfigLoader": [],
-    "TestDataBuilder": [
+    "DependencyGraph": [],
+    "RepoTools": [
+      "RelevanceTracker"
+    ],
+    "CoverageAnalyser": [],
+    "RedisCache": [],
+    "ImportGraph": [],
+    "PatternLibrary": [],
+    "Embeddings": [
       "CSharpAnalyser"
     ],
-    "PatternLibrary": [],
-    "RoslynAnalyser": [],
-    "DecisionTrace": [],
+    "TokenBudget": [],
+    "AzureAgent": [
+      "TokenBudget"
+    ],
     "Orchestrator": [
       "AzureAgent",
       "RepoTools",
@@ -159,46 +68,190 @@
       "DebugLogger",
       "CSharpAnalyser"
     ],
-    "EdgeCaseGenerator": [
-      "CSharpAnalyser"
-    ],
-    "RelevanceTracker": [],
-    "DependencyGraph": [],
     "MockScaffolder": [
       "CSharpAnalyser"
     ],
-    "RepoTools": [
-      "RelevanceTracker"
+    "DebugLogger": [],
+    "FeedbackLoop": [],
+    "StrykerRunner": [],
+    "WorkerDispatch": [
+      "Orchestrator",
+      "Orchestrator"
     ],
-    "ImportGraph": [],
-    "CallGraph": [],
-    "Embeddings": [
+    "RoslynAnalyser": [
       "CSharpAnalyser"
     ],
-    "RepoMemory": [],
-    "CSharpAnalyser": [],
-    "PluginLoader": [],
-    "TokenBudget": [],
-    "IntegrationTestGen": [
-      "CSharpAnalyser"
-    ],
-    "CostEstimator": [
+    "DecisionTrace": [],
+    "RelevanceTracker": [],
+    "TaskOrchestrator": [
+      "RetrievalAgent",
+      "WorkerDispatch",
+      "FeedbackLoop",
       "TokenBudget",
-      "ConfigLoader"
+      "AzureAgent"
     ],
-    "TestStyleDetector": [],
-    "CoverageAnalyser": [],
     "MetricsTracker": [
       "TokenBudget"
     ],
-    "StrykerRunner": [],
-    "AzureAgent": [
-      "TokenBudget"
+    "TestDataBuilder": [
+      "CSharpAnalyser",
+      "RepoTools"
     ],
-    "RedisCache": [],
+    "RetrievalAgent": [
+      "Embeddings",
+      "RepoMemory",
+      "CSharpAnalyser",
+      "ImportGraph",
+      "CallGraph"
+    ],
+    "CallGraph": [],
+    "IntegrationTestGen": [
+      "CSharpAnalyser",
+      "MockScaffolder",
+      "TestDataBuilder",
+      "RepoTools"
+    ],
     "FoundryAgent": [
       "TokenBudget"
+    ],
+    "EdgeCaseGenerator": [
+      "CSharpAnalyser"
     ]
   },
-  "solution": "C:\\Users\\adamw\\source\\repos\\Forge-Cli\\tmp-sample-repo\\SampleApi.sln"
+  "scripts": [],
+  "coreModules": [
+    {
+      "name": "AzureAgent",
+      "path": "/app/lib/AzureAgent.ps1"
+    },
+    {
+      "name": "CallGraph",
+      "path": "/app/lib/CallGraph.ps1"
+    },
+    {
+      "name": "ConfigLoader",
+      "path": "/app/lib/ConfigLoader.ps1"
+    },
+    {
+      "name": "CostEstimator",
+      "path": "/app/lib/CostEstimator.ps1"
+    },
+    {
+      "name": "CoverageAnalyser",
+      "path": "/app/lib/CoverageAnalyser.ps1"
+    },
+    {
+      "name": "CSharpAnalyser",
+      "path": "/app/lib/CSharpAnalyser.ps1"
+    },
+    {
+      "name": "DebugLogger",
+      "path": "/app/lib/DebugLogger.ps1"
+    },
+    {
+      "name": "DecisionTrace",
+      "path": "/app/lib/DecisionTrace.ps1"
+    },
+    {
+      "name": "DependencyGraph",
+      "path": "/app/lib/DependencyGraph.ps1"
+    },
+    {
+      "name": "EdgeCaseGenerator",
+      "path": "/app/lib/EdgeCaseGenerator.ps1"
+    },
+    {
+      "name": "Embeddings",
+      "path": "/app/lib/Embeddings.ps1"
+    },
+    {
+      "name": "FeedbackLoop",
+      "path": "/app/lib/FeedbackLoop.ps1"
+    },
+    {
+      "name": "FoundryAgent",
+      "path": "/app/lib/FoundryAgent.ps1"
+    },
+    {
+      "name": "ImportGraph",
+      "path": "/app/lib/ImportGraph.ps1"
+    },
+    {
+      "name": "IntegrationTestGen",
+      "path": "/app/lib/IntegrationTestGen.ps1"
+    },
+    {
+      "name": "MetricsTracker",
+      "path": "/app/lib/MetricsTracker.ps1"
+    },
+    {
+      "name": "MockScaffolder",
+      "path": "/app/lib/MockScaffolder.ps1"
+    },
+    {
+      "name": "Orchestrator",
+      "path": "/app/lib/Orchestrator.ps1"
+    },
+    {
+      "name": "PatternLibrary",
+      "path": "/app/lib/PatternLibrary.ps1"
+    },
+    {
+      "name": "PluginLoader",
+      "path": "/app/lib/PluginLoader.ps1"
+    },
+    {
+      "name": "RedisCache",
+      "path": "/app/lib/RedisCache.ps1"
+    },
+    {
+      "name": "RelevanceTracker",
+      "path": "/app/lib/RelevanceTracker.ps1"
+    },
+    {
+      "name": "RepoMemory",
+      "path": "/app/lib/RepoMemory.ps1"
+    },
+    {
+      "name": "RepoTools",
+      "path": "/app/lib/RepoTools.ps1"
+    },
+    {
+      "name": "RetrievalAgent",
+      "path": "/app/lib/RetrievalAgent.ps1"
+    },
+    {
+      "name": "RoslynAnalyser",
+      "path": "/app/lib/RoslynAnalyser.ps1"
+    },
+    {
+      "name": "StrykerRunner",
+      "path": "/app/lib/StrykerRunner.ps1"
+    },
+    {
+      "name": "TaskOrchestrator",
+      "path": "/app/lib/TaskOrchestrator.ps1"
+    },
+    {
+      "name": "TestDataBuilder",
+      "path": "/app/lib/TestDataBuilder.ps1"
+    },
+    {
+      "name": "TestStyleDetector",
+      "path": "/app/lib/TestStyleDetector.ps1"
+    },
+    {
+      "name": "TokenBudget",
+      "path": "/app/lib/TokenBudget.ps1"
+    },
+    {
+      "name": "WorkerDispatch",
+      "path": "/app/lib/WorkerDispatch.ps1"
+    }
+  ],
+  "solution": null,
+  "entryPoints": [
+    "/app/run.ps1",
+    "/app/tools/RoslynAnalyser/Program.cs"
+  ]
 }
