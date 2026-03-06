@@ -195,6 +195,36 @@ function Search-Hybrid {
     }
 }
 
+function Test-PathInRepo {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$RepoRoot
+    )
+
+    try {
+        $resolvedRepo = (Resolve-Path $RepoRoot -ErrorAction Stop).Path
+        # Normalize repo root to have consistent separators
+        $resolvedRepo = $resolvedRepo.Replace('\', '/')
+        if (-not $resolvedRepo.EndsWith('/')) { $resolvedRepo += '/' }
+
+        # Resolve full path of target
+        $targetPath = if ([System.IO.Path]::IsPathRooted($Path)) { $Path } else { Join-Path $resolvedRepo $Path }
+        # Normalize target path
+        $normalizedTarget = [System.IO.Path]::GetFullPath($targetPath).Replace('\', '/')
+
+        # Check if it starts with repo root
+        if ($normalizedTarget.StartsWith($resolvedRepo)) { return $true }
+
+        # Exact match is also okay (repo root itself)
+        if ($normalizedTarget -eq $resolvedRepo.TrimEnd('/')) { return $true }
+
+        return $false
+    } catch {
+        return $false
+    }
+}
+
 function Open-File {
     param ([Parameter(Mandatory)][string]$Path, [int]$MaxLines = 400)
 

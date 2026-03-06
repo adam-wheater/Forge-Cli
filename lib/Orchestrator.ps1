@@ -45,14 +45,13 @@ function Invoke-WriteFile {
     )
 
     try {
+        if (-not (Test-PathInRepo -Path $Path -RepoRoot $RepoRoot)) {
+            return "WRITE_FAILED: Path '$Path' is outside the repository root"
+        }
+
         $resolvedRepo = (Resolve-Path $RepoRoot -ErrorAction Stop).Path
         $fullPath = if ([System.IO.Path]::IsPathRooted($Path)) { $Path } else { Join-Path $resolvedRepo $Path }
         $fullPath = [System.IO.Path]::GetFullPath($fullPath)
-
-        # Validate: path must be within RepoRoot
-        if (-not $fullPath.StartsWith($resolvedRepo)) {
-            return "WRITE_FAILED: Path '$Path' is outside the repository root"
-        }
 
         # Validate: path must be a .cs file
         if ($fullPath -notmatch '\.cs$') {
@@ -815,8 +814,17 @@ function Invoke-ToolCall {
             if ($Opens.Value -ge $MAX_OPENS) { return "LIMIT_REACHED: Max opens ($MAX_OPENS) exceeded" }
             $Opens.Value++
             $file = Open-File $Arguments.path
-            $imports = Get-Imports $Arguments.path
-            $ctors = Get-ConstructorDependencies $Arguments.path
+
+            # Check for path traversal for side-channel info (imports/ctors)
+            $repoRoot = (Get-Location).Path
+            if (Test-PathInRepo -Path $Arguments.path -RepoRoot $repoRoot) {
+                $imports = Get-Imports $Arguments.path
+                $ctors = Get-ConstructorDependencies $Arguments.path
+            } else {
+                $imports = @()
+                $ctors = @()
+            }
+
             $result = "FILE $($Arguments.path):`n$file"
             if ($imports) { $result += "`nIMPORTS:`n$($imports -join "`n")" }
             if ($ctors) { $result += "`nCONSTRUCTOR_DEPENDENCIES:`n$($ctors -join "`n")" }
@@ -852,6 +860,10 @@ function Invoke-ToolCall {
             return "TEST_LIST:`n$(Invoke-ListTests -RepoRoot $repoRoot)"
         }
         "get_symbols" {
+            $repoRoot = (Get-Location).Path
+            if (-not (Test-PathInRepo -Path $Arguments.path -RepoRoot $repoRoot)) {
+                return "ACCESS_DENIED: Path '$($Arguments.path)' is outside the repository root"
+            }
             $result = Get-CSharpSymbols -Path $Arguments.path
             $formatted = "Namespace: $($result.Namespace)`n"
             foreach ($cls in $result.Classes) {
@@ -885,6 +897,10 @@ function Invoke-ToolCall {
             }
         }
         "get_nuget_info" {
+            $repoRoot = (Get-Location).Path
+            if (-not (Test-PathInRepo -Path $Arguments.path -RepoRoot $repoRoot)) {
+                return "ACCESS_DENIED: Path '$($Arguments.path)' is outside the repository root"
+            }
             $result = Get-NuGetPackages -ProjectPath $Arguments.path
             $formatted = "TestFramework: $($result.TestFramework), MockLibrary: $($result.MockLibrary), AssertionLibrary: $($result.AssertionLibrary)`n"
             $formatted += "Packages: $(($result.Packages | ForEach-Object { "$($_.Name)@$($_.Version)" }) -join ', ')`n"
