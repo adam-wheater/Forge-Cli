@@ -65,9 +65,9 @@ function Get-NullMockSetupLine {
     $params = $Method.Parameters
 
     # Build parameter matchers
-    $paramMatchers = @()
+    $paramMatchers = [System.Collections.Generic.List[string]]::new()
     foreach ($p in $params) {
-        $paramMatchers += "It.IsAny<$($p.Type)>()"
+        $paramMatchers.Add("It.IsAny<$($p.Type)>()")
     }
     $matchersJoined = $paramMatchers -join ", "
 
@@ -123,7 +123,7 @@ function Get-ApiControllers {
     # Find all .cs files
     $csFiles = Find-SourceFiles -RepoRoot $RepoRoot -Filter '*.cs'
 
-    $controllers = @()
+    $controllers = [System.Collections.Generic.List[hashtable]]::new()
 
     foreach ($file in $csFiles) {
         if (-not (Test-Path $file)) { continue }
@@ -157,7 +157,7 @@ function Get-ApiControllers {
                 $relativePath = $file.Substring($RepoRoot.Length).TrimStart([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
             }
 
-            $controllers += @{
+            $controllers.Add(@{
                 Name         = $class.Name
                 Path         = $file
                 RelativePath = $relativePath
@@ -167,11 +167,11 @@ function Get-ApiControllers {
                 Interfaces   = $class.Interfaces
                 Constructors = $class.Constructors
                 Endpoints    = $endpoints
-            }
+            })
         }
     }
 
-    return $controllers
+    return $controllers.ToArray()
 }
 
 function Get-ControllerEndpoints {
@@ -189,7 +189,7 @@ function Get-ControllerEndpoints {
     if (-not $content) { return @() }
 
     $lines = $content -split "\r?\n"
-    $endpoints = @()
+    $endpoints = [System.Collections.Generic.List[hashtable]]::new()
 
     for ($i = 0; $i -lt $lines.Count; $i++) {
         $line = $lines[$i]
@@ -225,7 +225,7 @@ function Get-ControllerEndpoints {
         # Collect additional attributes on subsequent lines before the method
         $authorize = $false
         $allowAnonymous = $false
-        $producesStatusCodes = @()
+        $producesStatusCodes = [System.Collections.Generic.List[int]]::new()
 
         $attrIdx = $i - 1
         while ($attrIdx -ge 0 -and $lines[$attrIdx].Trim() -match '^\[') {
@@ -233,13 +233,13 @@ function Get-ControllerEndpoints {
             if ($attrLine -match '\[Authorize') { $authorize = $true }
             if ($attrLine -match '\[AllowAnonymous\]') { $allowAnonymous = $true }
             if ($attrLine -match '\[ProducesResponseType\((\d+)\)') {
-                $producesStatusCodes += [int]$matches[1]
+                $producesStatusCodes.Add([int]$matches[1])
             }
             if ($attrLine -match '\[ProducesResponseType\(typeof\([^)]+\),\s*(\d+)\)') {
-                $producesStatusCodes += [int]$matches[1]
+                $producesStatusCodes.Add([int]$matches[1])
             }
             if ($attrLine -match 'StatusCodes\.Status(\d+)') {
-                $producesStatusCodes += [int]$matches[1]
+                $producesStatusCodes.Add([int]$matches[1])
             }
             $attrIdx--
         }
@@ -251,14 +251,14 @@ function Get-ControllerEndpoints {
             if ($methodLine -match '\[Authorize') { $authorize = $true }
             if ($methodLine -match '\[AllowAnonymous\]') { $allowAnonymous = $true }
             if ($methodLine -match '\[ProducesResponseType\((\d+)\)') {
-                $producesStatusCodes += [int]$matches[1]
+                $producesStatusCodes.Add([int]$matches[1])
             }
             $methodIdx++
         }
 
         $methodName = ""
         $returnType = ""
-        $methodParams = @()
+        $methodParams = [System.Collections.Generic.List[hashtable]]::new()
 
         if ($methodIdx -lt $lines.Count) {
             $methodLine = $lines[$methodIdx]
@@ -281,30 +281,30 @@ function Get-ControllerEndpoints {
                                     $binding = $matches[1]
                                 }
                             }
-                            $methodParams += @{
+                            $methodParams.Add(@{
                                 Type    = ($paramTokens[0..($paramTokens.Count - 2)] -join ' ')
                                 Name    = $paramTokens[-1]
                                 Binding = $binding
-                            }
+                            })
                         }
                     }
                 }
             }
         }
 
-        $endpoints += @{
+        $endpoints.Add(@{
             HttpMethod          = $httpMethod
             RouteTemplate       = $routeTemplate
             MethodName          = $methodName
             ReturnType          = $returnType
-            Parameters          = $methodParams
+            Parameters          = $methodParams.ToArray()
             RequiresAuth        = $authorize -and -not $allowAnonymous
-            ProducesStatusCodes = $producesStatusCodes
+            ProducesStatusCodes = $producesStatusCodes.ToArray()
             Line                = $i + 1
-        }
+        })
     }
 
-    return $endpoints
+    return $endpoints.ToArray()
 }
 
 function Get-IntegrationTestScaffold {
@@ -354,12 +354,12 @@ function Get-IntegrationTestScaffold {
     }
 
     # Identify external dependencies to mock (constructor interfaces)
-    $mockDeps = @()
+    $mockDeps = [System.Collections.Generic.List[hashtable]]::new()
     if ($controller.Constructors -and $controller.Constructors.Count -gt 0) {
         $ctor = $controller.Constructors | Sort-Object { $_.Parameters.Count } -Descending | Select-Object -First 1
         foreach ($p in $ctor.Parameters) {
             if ($p.Type -match '^I[A-Z]') {
-                $mockDeps += $p
+                $mockDeps.Add($p)
             }
         }
     }

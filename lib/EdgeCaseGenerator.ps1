@@ -12,14 +12,14 @@ function Get-EdgeCases {
         [Parameter(Mandatory)][string]$MethodSignature
     )
 
-    $edgeCases = @()
+    $edgeCases = [System.Collections.Generic.List[hashtable]]::new()
 
     # Parse the method signature to extract return type and parameters
     # Expected format: "Task<User> CreateAsync(string email, string name)"
     $sigPattern = '(?:(?:async\s+)?)([\w<>\[\],\?\s]+)\s+(\w+)\s*\(([^)]*)\)'
     if ($MethodSignature -notmatch $sigPattern) {
         Write-Warning "Get-EdgeCases: Could not parse method signature: '$MethodSignature'"
-        return $edgeCases
+        return $edgeCases.ToArray()
     }
 
     $returnType = $matches[1].Trim()
@@ -46,39 +46,41 @@ function Get-EdgeCases {
         $name = $param.Name
 
         $cases = Get-TypeEdgeCases -TypeName $type -ParamName $name -MethodName $methodName
-        $edgeCases += $cases
+        foreach ($c in $cases) {
+            $edgeCases.Add($c)
+        }
     }
 
     # Generate return-type-specific edge cases
     if ($returnType -match 'Task<(.+)>') {
         $innerType = $matches[1]
         if ($innerType -match 'IEnumerable|IList|List|ICollection|Array') {
-            $edgeCases += @{
+            $edgeCases.Add(@{
                 Category    = "return-value"
                 Description = "$methodName should handle returning an empty collection gracefully."
                 TestName    = "${methodName}_ReturnsEmptyCollection_WhenNoResults"
                 Parameter   = "(return)"
-            }
+            })
         }
     }
 
     # Generate concurrency edge cases for async methods
     if ($MethodSignature -match '\basync\b' -or $returnType -match '^Task') {
-        $edgeCases += @{
+        $edgeCases.Add(@{
             Category    = "concurrency"
             Description = "$methodName should handle concurrent calls without race conditions."
             TestName    = "${methodName}_ConcurrentCalls_DoNotCorruptState"
             Parameter   = "(concurrency)"
-        }
-        $edgeCases += @{
+        })
+        $edgeCases.Add(@{
             Category    = "cancellation"
             Description = "$methodName should respect CancellationToken if accepted."
             TestName    = "${methodName}_CancelledToken_ThrowsOperationCancelled"
             Parameter   = "(cancellation)"
-        }
+        })
     }
 
-    return $edgeCases
+    return $edgeCases.ToArray()
 }
 
 function Get-TypeEdgeCases {
@@ -89,178 +91,178 @@ function Get-TypeEdgeCases {
         [Parameter(Mandatory)][string]$MethodName
     )
 
-    $cases = @()
+    $cases = [System.Collections.Generic.List[hashtable]]::new()
     $type = $TypeName.Trim()
 
     # String parameters
     if ($type -match '^string\??$') {
-        $cases += @{
+        $cases.Add(@{
             Category    = "null"
             Description = "Pass null for '$ParamName' — should throw ArgumentNullException or handle gracefully."
             TestName    = "${MethodName}_Null${ParamName}_ThrowsOrHandles"
             Parameter   = $ParamName
-        }
-        $cases += @{
+        })
+        $cases.Add(@{
             Category    = "empty"
             Description = "Pass empty string for '$ParamName' — should validate or handle empty input."
             TestName    = "${MethodName}_Empty${ParamName}_ThrowsOrHandles"
             Parameter   = $ParamName
-        }
-        $cases += @{
+        })
+        $cases.Add(@{
             Category    = "whitespace"
             Description = "Pass whitespace-only string for '$ParamName' — should trim or reject."
             TestName    = "${MethodName}_Whitespace${ParamName}_ThrowsOrHandles"
             Parameter   = $ParamName
-        }
-        $cases += @{
+        })
+        $cases.Add(@{
             Category    = "boundary"
             Description = "Pass very long string (>10000 chars) for '$ParamName' — test max length handling."
             TestName    = "${MethodName}_VeryLong${ParamName}_HandlesMaxLength"
             Parameter   = $ParamName
-        }
+        })
 
         # Email-specific edge cases
         if ($ParamName -match 'email' -or $ParamName -match 'Email') {
-            $cases += @{
+            $cases.Add(@{
                 Category    = "format"
                 Description = "Pass invalid email format for '$ParamName' — should reject malformed email."
                 TestName    = "${MethodName}_InvalidEmail_ThrowsValidationError"
                 Parameter   = $ParamName
-            }
-            $cases += @{
+            })
+            $cases.Add(@{
                 Category    = "duplicate"
                 Description = "Pass duplicate email for '$ParamName' — test uniqueness constraint."
                 TestName    = "${MethodName}_DuplicateEmail_ThrowsConflictError"
                 Parameter   = $ParamName
-            }
+            })
         }
     }
     # Integer / numeric parameters
     elseif ($type -match '^int\??$' -or $type -match '^Int32\??$') {
-        $cases += @{
+        $cases.Add(@{
             Category    = "boundary"
             Description = "Pass 0 for '$ParamName' — test zero boundary value."
             TestName    = "${MethodName}_Zero${ParamName}_HandlesZero"
             Parameter   = $ParamName
-        }
-        $cases += @{
+        })
+        $cases.Add(@{
             Category    = "boundary"
             Description = "Pass -1 for '$ParamName' — test negative value handling."
             TestName    = "${MethodName}_Negative${ParamName}_ThrowsOrHandles"
             Parameter   = $ParamName
-        }
-        $cases += @{
+        })
+        $cases.Add(@{
             Category    = "boundary"
             Description = "Pass Int32.MaxValue for '$ParamName' — test overflow handling."
             TestName    = "${MethodName}_MaxValue${ParamName}_HandlesMaxInt"
             Parameter   = $ParamName
-        }
+        })
 
         # ID-specific edge cases
         if ($ParamName -match 'id' -or $ParamName -match 'Id') {
-            $cases += @{
+            $cases.Add(@{
                 Category    = "not-found"
                 Description = "Pass non-existent ID for '$ParamName' — should return null or throw NotFoundException."
                 TestName    = "${MethodName}_NonExistent${ParamName}_ReturnsNullOrThrows"
                 Parameter   = $ParamName
-            }
+            })
         }
     }
     # Long parameters
     elseif ($type -match '^long\??$' -or $type -match '^Int64\??$') {
-        $cases += @{
+        $cases.Add(@{
             Category    = "boundary"
             Description = "Pass 0 for '$ParamName' — test zero boundary."
             TestName    = "${MethodName}_Zero${ParamName}_HandlesZero"
             Parameter   = $ParamName
-        }
-        $cases += @{
+        })
+        $cases.Add(@{
             Category    = "boundary"
             Description = "Pass negative value for '$ParamName'."
             TestName    = "${MethodName}_Negative${ParamName}_ThrowsOrHandles"
             Parameter   = $ParamName
-        }
+        })
     }
     # Boolean parameters
     elseif ($type -match '^bool\??$') {
-        $cases += @{
+        $cases.Add(@{
             Category    = "toggle"
             Description = "Test '$ParamName' with both true and false values."
             TestName    = "${MethodName}_${ParamName}True_And_${ParamName}False"
             Parameter   = $ParamName
-        }
+        })
     }
     # Guid parameters
     elseif ($type -match '^Guid\??$') {
-        $cases += @{
+        $cases.Add(@{
             Category    = "empty"
             Description = "Pass Guid.Empty for '$ParamName' — should reject empty GUID."
             TestName    = "${MethodName}_EmptyGuid${ParamName}_ThrowsOrHandles"
             Parameter   = $ParamName
-        }
+        })
     }
     # DateTime parameters
     elseif ($type -match '^DateTime\??$' -or $type -match '^DateTimeOffset\??$') {
-        $cases += @{
+        $cases.Add(@{
             Category    = "boundary"
             Description = "Pass DateTime.MinValue for '$ParamName' — test minimum date handling."
             TestName    = "${MethodName}_MinDate${ParamName}_HandlesMinDate"
             Parameter   = $ParamName
-        }
-        $cases += @{
+        })
+        $cases.Add(@{
             Category    = "boundary"
             Description = "Pass future date for '$ParamName' — test future date validation."
             TestName    = "${MethodName}_FutureDate${ParamName}_HandlesOrRejects"
             Parameter   = $ParamName
-        }
+        })
     }
     # Collection parameters
     elseif ($type -match 'IEnumerable<|IList<|List<|ICollection<|Array|\[\]') {
-        $cases += @{
+        $cases.Add(@{
             Category    = "null"
             Description = "Pass null collection for '$ParamName' — should throw ArgumentNullException."
             TestName    = "${MethodName}_Null${ParamName}_ThrowsArgumentNull"
             Parameter   = $ParamName
-        }
-        $cases += @{
+        })
+        $cases.Add(@{
             Category    = "empty"
             Description = "Pass empty collection for '$ParamName' — should handle empty input."
             TestName    = "${MethodName}_Empty${ParamName}_HandlesEmptyCollection"
             Parameter   = $ParamName
-        }
-        $cases += @{
+        })
+        $cases.Add(@{
             Category    = "boundary"
             Description = "Pass single-element collection for '$ParamName' — test minimum viable input."
             TestName    = "${MethodName}_SingleElement${ParamName}_ProcessesSingleItem"
             Parameter   = $ParamName
-        }
-        $cases += @{
+        })
+        $cases.Add(@{
             Category    = "boundary"
             Description = "Pass very large collection for '$ParamName' — test performance/limits."
             TestName    = "${MethodName}_LargeCollection${ParamName}_HandlesLargeInput"
             Parameter   = $ParamName
-        }
+        })
     }
     # Nullable reference types (ending with ?)
     elseif ($type -match '\?$') {
-        $cases += @{
+        $cases.Add(@{
             Category    = "null"
             Description = "Pass null for nullable '$ParamName' — verify null handling path."
             TestName    = "${MethodName}_Null${ParamName}_HandlesNull"
             Parameter   = $ParamName
-        }
+        })
     }
     # Generic object / class parameters
     else {
-        $cases += @{
+        $cases.Add(@{
             Category    = "null"
             Description = "Pass null for '$ParamName' ($type) — should throw ArgumentNullException or handle gracefully."
             TestName    = "${MethodName}_Null${ParamName}_ThrowsOrHandles"
             Parameter   = $ParamName
-        }
+        })
     }
 
-    return $cases
+    return $cases.ToArray()
 }
 
 function Get-EdgeCaseContext {
@@ -300,9 +302,9 @@ function Get-EdgeCaseContext {
 
     # Reconstruct the method signature string
     $asyncPrefix = if ($targetMethod.Async) { "async " } else { "" }
-    $paramParts = @()
+    $paramParts = [System.Collections.Generic.List[string]]::new()
     foreach ($p in $targetMethod.Parameters) {
-        $paramParts += "$($p.Type) $($p.Name)"
+        $paramParts.Add("$($p.Type) $($p.Name)")
     }
     $paramStr = $paramParts -join ", "
     $signature = "${asyncPrefix}$($targetMethod.ReturnType) $($targetMethod.Name)($paramStr)"
@@ -315,29 +317,29 @@ function Get-EdgeCaseContext {
     }
 
     # Format as context section
-    $lines = @()
-    $lines += "EDGE_CASES:"
-    $lines += "Method: $signature"
-    $lines += ""
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $lines.Add("EDGE_CASES:")
+    $lines.Add("Method: $signature")
+    $lines.Add("")
 
     $grouped = @{}
     foreach ($ec in $edgeCases) {
         $cat = $ec.Category
         if (-not $grouped.ContainsKey($cat)) {
-            $grouped[$cat] = @()
+            $grouped[$cat] = [System.Collections.Generic.List[hashtable]]::new()
         }
-        $grouped[$cat] += $ec
+        $grouped[$cat].Add($ec)
     }
 
     foreach ($cat in $grouped.Keys) {
-        $lines += "  [$cat]"
+        $lines.Add("  [$cat]")
         foreach ($ec in $grouped[$cat]) {
-            $lines += "    - $($ec.Description)"
-            $lines += "      Suggested test: $($ec.TestName)"
+            $lines.Add("    - $($ec.Description)")
+            $lines.Add("      Suggested test: $($ec.TestName)")
         }
     }
 
-    $lines += ""
+    $lines.Add("")
 
-    return ($lines -join "`n")
+    return ($lines.ToArray() -join "`n")
 }

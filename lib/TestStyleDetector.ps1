@@ -39,14 +39,17 @@ function Detect-TestStyle {
         }
     }
 
-    $testFilePaths = @($testFiles | ForEach-Object { $_.FullName })
+    $testFilePaths = [System.Collections.Generic.List[string]]::new()
+    foreach ($f in $testFiles) {
+        $testFilePaths.Add($f.FullName)
+    }
 
     # Read all test file contents
-    $allContents = @()
+    $allContents = [System.Collections.Generic.List[hashtable]]::new()
     foreach ($f in $testFiles) {
         $content = Get-Content $f.FullName -Raw -ErrorAction SilentlyContinue
         if ($content) {
-            $allContents += @{ Path = $f.FullName; Content = $content; Name = $f.Name; BaseName = $f.BaseName }
+            $allContents.Add(@{ Path = $f.FullName; Content = $content; Name = $f.Name; BaseName = $f.BaseName })
         }
     }
 
@@ -61,11 +64,15 @@ function Detect-TestStyle {
             AAAPercentage    = 0
             SetupPattern     = "InlineSetup"
             SampleCount      = 0
-            TestFiles        = $testFilePaths
+            TestFiles        = $testFilePaths.ToArray()
         }
     }
 
-    $allText = ($allContents | ForEach-Object { $_.Content }) -join "`n"
+    $allTextArr = [System.Collections.Generic.List[string]]::new()
+    foreach ($tc in $allContents) {
+        $allTextArr.Add($tc.Content)
+    }
+    $allText = $allTextArr -join "`n"
 
     # -------------------------------------------------------
     # 1. Test Framework Detection
@@ -191,9 +198,11 @@ function Detect-TestStyle {
     # Get all non-test C# class files
     $implFiles = Get-ChildItem $RepoRoot -Recurse -Filter "*.cs" -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -notmatch 'Test' -and $_.FullName -notmatch '[\\/](obj|bin|\.git)[\\/]' }
-    $implClassNames = @()
+    $implClassNames = [System.Collections.Generic.HashSet[string]]::new()
     if ($implFiles) {
-        $implClassNames = @($implFiles | ForEach-Object { $_.BaseName })
+        foreach ($f in $implFiles) {
+            [void]$implClassNames.Add($f.BaseName)
+        }
     }
 
     $mappedCount = 0
@@ -206,7 +215,7 @@ function Detect-TestStyle {
             $testClassName = $cm.Groups[1].Value
             # Strip common suffixes to find the SUT name
             $sutName = $testClassName -replace '(Tests|Test|Spec|Specs)$', ''
-            if ($sutName -and $implClassNames -contains $sutName) {
+            if ($sutName -and $implClassNames.Contains($sutName)) {
                 $mappedCount++
             }
         }
@@ -292,7 +301,7 @@ function Detect-TestStyle {
         AAAPercentage    = $aaaPercentage
         SetupPattern     = $setupPattern
         SampleCount      = $sampleCount
-        TestFiles        = $testFilePaths
+        TestFiles        = $testFilePaths.ToArray()
     }
 }
 
@@ -302,99 +311,99 @@ function Get-TestStylePrompt {
         [Parameter(Mandatory)][hashtable]$Style
     )
 
-    $lines = @()
-    $lines += "TEST_STYLE:"
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $lines.Add("TEST_STYLE:")
 
     # Framework instruction
     switch ($Style.TestFramework) {
         "xunit" {
-            $lines += "This project uses xUnit with [Fact] and [Theory] attributes."
+            $lines.Add("This project uses xUnit with [Fact] and [Theory] attributes.")
         }
         "nunit" {
-            $lines += "This project uses NUnit with [Test] and [TestCase] attributes."
+            $lines.Add("This project uses NUnit with [Test] and [TestCase] attributes.")
         }
         "mstest" {
-            $lines += "This project uses MSTest with [TestMethod] and [TestClass] attributes."
+            $lines.Add("This project uses MSTest with [TestMethod] and [TestClass] attributes.")
         }
         default {
-            $lines += "No test framework detected. Use xUnit with [Fact] and [Theory] attributes by default."
+            $lines.Add("No test framework detected. Use xUnit with [Fact] and [Theory] attributes by default.")
         }
     }
 
     # Mock library instruction
     switch ($Style.MockLibrary) {
         "moq" {
-            $lines += "Mocking: Use Moq (new Mock<IService>(), .Setup(), .Verify(), It.IsAny<T>())."
+            $lines.Add("Mocking: Use Moq (new Mock<IService>(), .Setup(), .Verify(), It.IsAny<T>()).")
         }
         "nsubstitute" {
-            $lines += "Mocking: Use NSubstitute (Substitute.For<IService>(), .Returns(), .Received())."
+            $lines.Add("Mocking: Use NSubstitute (Substitute.For<IService>(), .Returns(), .Received()).")
         }
         "fakeiteasy" {
-            $lines += "Mocking: Use FakeItEasy (A.Fake<IService>(), A.CallTo())."
+            $lines.Add("Mocking: Use FakeItEasy (A.Fake<IService>(), A.CallTo()).")
         }
         default {
-            $lines += "Mocking: No mocking library detected. Use Moq if mocking is needed."
+            $lines.Add("Mocking: No mocking library detected. Use Moq if mocking is needed.")
         }
     }
 
     # Assertion style instruction
     switch ($Style.AssertionStyle) {
         "fluentassertions" {
-            $lines += "Assertions: Use FluentAssertions (.Should().Be(), .Should().NotBeNull())."
+            $lines.Add("Assertions: Use FluentAssertions (.Should().Be(), .Should().NotBeNull()).")
         }
         "shouldly" {
-            $lines += "Assertions: Use Shouldly (.ShouldBe(), .ShouldNotBeNull())."
+            $lines.Add("Assertions: Use Shouldly (.ShouldBe(), .ShouldNotBeNull()).")
         }
         default {
-            $lines += "Assertions: Use built-in framework assertions (Assert.Equal(), Assert.True(), etc.)."
+            $lines.Add("Assertions: Use built-in framework assertions (Assert.Equal(), Assert.True(), etc.).")
         }
     }
 
     # Naming convention instruction
     switch ($Style.NamingConvention) {
         "MethodName_Scenario_Expected" {
-            $lines += "Naming: Use MethodName_Scenario_ExpectedResult pattern (e.g., CreateUser_ValidInput_ReturnsUser)."
+            $lines.Add("Naming: Use MethodName_Scenario_ExpectedResult pattern (e.g., CreateUser_ValidInput_ReturnsUser).")
         }
         "Should_Action_When_Condition" {
-            $lines += "Naming: Use Should_Action_When_Condition pattern (e.g., ShouldCreateUser_WhenInputIsValid)."
+            $lines.Add("Naming: Use Should_Action_When_Condition pattern (e.g., ShouldCreateUser_WhenInputIsValid).")
         }
         "GivenWhenThen" {
-            $lines += "Naming: Use Given_When_Then pattern (e.g., Given_ValidInput_When_CreateUser_Then_ReturnsUser)."
+            $lines.Add("Naming: Use Given_When_Then pattern (e.g., Given_ValidInput_When_CreateUser_Then_ReturnsUser).")
         }
         default {
-            $lines += "Naming: Use descriptive method names in plain English (e.g., CreatesUserWithValidInput)."
+            $lines.Add("Naming: Use descriptive method names in plain English (e.g., CreatesUserWithValidInput).")
         }
     }
 
     # AAA pattern instruction
     if ($Style.UsesAAAComments) {
-        $lines += "Structure: Follow Arrange-Act-Assert pattern with // Arrange, // Act, // Assert comments."
+        $lines.Add("Structure: Follow Arrange-Act-Assert pattern with // Arrange, // Act, // Assert comments.")
     } else {
-        $lines += "Structure: Follow Arrange-Act-Assert pattern (AAA comments are not used in this project)."
+        $lines.Add("Structure: Follow Arrange-Act-Assert pattern (AAA comments are not used in this project).")
     }
 
     # Setup pattern instruction
     switch ($Style.SetupPattern) {
         "ConstructorSetup" {
-            $lines += "Setup: Create mocks in the test class constructor (xUnit pattern - no [SetUp] method)."
+            $lines.Add("Setup: Create mocks in the test class constructor (xUnit pattern - no [SetUp] method).")
         }
         "SetUpMethod" {
-            $lines += "Setup: Use [SetUp] or [TestInitialize] method for shared mock configuration."
+            $lines.Add("Setup: Use [SetUp] or [TestInitialize] method for shared mock configuration.")
         }
         default {
-            $lines += "Setup: Each test method sets up its own mocks and dependencies inline."
+            $lines.Add("Setup: Each test method sets up its own mocks and dependencies inline.")
         }
     }
 
     # Organisation instruction
     switch ($Style.TestOrganisation) {
         "OneClassPerSUT" {
-            $lines += "Organisation: One test class per class under test (e.g., UserServiceTests for UserService)."
+            $lines.Add("Organisation: One test class per class under test (e.g., UserServiceTests for UserService).")
         }
         default {
-            $lines += "Organisation: Tests are grouped by feature rather than one-to-one with implementation classes."
+            $lines.Add("Organisation: Tests are grouped by feature rather than one-to-one with implementation classes.")
         }
     }
 
-    return ($lines -join "`n")
+    return ($lines.ToArray() -join "`n")
 }
