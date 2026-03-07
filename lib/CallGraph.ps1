@@ -2,17 +2,30 @@ function Get-ConstructorDependencies {
     param ([Parameter(Mandatory)][string]$Path)
     if (-not (Test-Path $Path)) { return @() }
 
-    $content = Get-Content $Path -Raw
-    $matches = Select-String -InputObject $content -Pattern 'public\s+\w+\s*\(([^)]*)\)' -AllMatches
+    # Bolt: Optimized to use native .NET ReadAllText which is faster than Get-Content
+    $fullPath = Convert-Path $Path
+    $content = [System.IO.File]::ReadAllText($fullPath)
 
-    $deps = @()
-    foreach ($m in $matches.Matches) {
-        $params = $m.Groups[1].Value -split ','
+    # Bolt: [regex]::Matches is significantly faster than Select-String
+    $matches = [regex]::Matches($content, 'public\s+\w+\s*\(([^)]*)\)')
+
+    # Bolt: Use HashSet for O(1) deduplication and to avoid O(N^2) array concatenation (+=)
+    $deps = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+
+    foreach ($m in $matches) {
+        # Bolt: Native .Split is faster than PowerShell -split
+        $params = $m.Groups[1].Value.Split(',', [System.StringSplitOptions]::RemoveEmptyEntries)
         foreach ($p in $params) {
-            $type = ($p.Trim() -split '\s+')[0]
-            if ($type) { $deps += $type }
+            $pTrimmed = $p.Trim()
+            if ($pTrimmed.Length -gt 0) {
+                # Bolt: Extract the type using fast native char split
+                $type = $pTrimmed.Split([char[]]@(' ', "`t", "`r", "`n"), [System.StringSplitOptions]::RemoveEmptyEntries)[0]
+                if ($type) {
+                    [void]$deps.Add($type)
+                }
+            }
         }
     }
 
-    $deps | Select-Object -Unique
+    [string[]]$deps
 }

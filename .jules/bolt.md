@@ -1,0 +1,3 @@
+## 2024-05-18 - Faster parsing with HashSet and native splits
+**Learning:** In PowerShell loops handling file text parsing and arrays, native .NET methods like `[System.IO.File]::ReadAllText` combined with `[regex]::Matches`, native `String.Split()`, and deduplicating via `[System.Collections.Generic.HashSet[string]]` can drop runtime drastically (e.g. O(N^2) concats dropped from ~2200ms to ~180ms for 10 iterations of 1000 items).
+**Action:** Default to `HashSet[T]` instead of `+=` array concatenation followed by `Select-Object -Unique` when parsing and collecting unique dependencies from files. Default to `String.Split()` over PowerShell `-split` in hot paths.
