@@ -1,0 +1,3 @@
+## 2024-05-24 - Optimising multiple pattern searches in PowerShell
+**Learning:** Running `[regex]::Matches` sequentially for multiple patterns across the same text (especially large text bodies) is slow and causes overhead. Consolidating regexes into a single alternation pattern (e.g. `PatternA|PatternB`) reduces execution time significantly (around 3-4x in benchmarks), even if there is slight double counting in patterns like `Mock<|new Mock<` (which can be acceptable for purely scoring algorithms).
+**Action:** When scanning text for multiple patterns sequentially, consider whether they can be grouped into an alternation `|` pattern with a single match query.
