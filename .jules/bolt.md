@@ -1,0 +1,3 @@
+## 2024-05-24 - Optimizing Get-Imports
+**Learning:** PowerShell's pipeline commands (`Get-Content | Where-Object | ForEach-Object | Select-Object -Unique`) are significantly slower than using native .NET methods like `[System.IO.File]::ReadAllText()` combined with `[regex]::Matches` and `HashSet[string]`. Using the latter approach yields a ~5x performance improvement.
+**Action:** When extracting data from files (e.g. searching for imports or constructor dependencies), prefer `[System.IO.File]::ReadAllText` with regex and `HashSet[string]` over PowerShell pipeline constructs to optimize file I/O and text processing.
