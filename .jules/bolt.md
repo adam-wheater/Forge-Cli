@@ -1,0 +1,3 @@
+## 2024-06-25 - PowerShell Array Concatenation and Grouped Regex Optimization
+**Learning:** In PowerShell, using `+=` to append to an array creates a new array and copies all elements each time, leading to O(n^2) performance degradation, especially evident when processing large file sets or long test outputs. Additionally, calling `[regex]::Matches` individually for multiple patterns incurs high overhead.
+**Action:** Always use `[System.Collections.Generic.List[T]]::new()` and `.Add()` when building large collections dynamically. Group regex patterns using alternation (e.g., `Pattern1|Pattern2`) to run a single pass instead of multiple individual matches for better CPU efficiency.
