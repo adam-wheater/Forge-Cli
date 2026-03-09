@@ -1,0 +1,3 @@
+## 2025-02-12 - PowerShell Pipeline Performance vs Native .NET
+**Learning:** PowerShell pipeline operations (`Get-Content`, `Where-Object`, `ForEach-Object`) are a significant performance bottleneck when parsing files (like source code). They can be up to 4x slower compared to using native .NET file I/O operations (`[System.IO.File]::ReadAllText`), Regex (`[regex]::Matches`), and `[System.Collections.Generic.HashSet[string]]`.
+**Action:** When performing file parsing or collection operations on large strings/files in PowerShell, default to native .NET classes like `[System.IO.File]::ReadAllText`, `[regex]`, and `HashSet[T]` instead of standard PowerShell pipeline cmdlets to dramatically improve performance.
