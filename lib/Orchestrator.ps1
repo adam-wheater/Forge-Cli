@@ -47,10 +47,18 @@ function Invoke-WriteFile {
     try {
         $resolvedRepo = (Resolve-Path $RepoRoot -ErrorAction Stop).Path
         $fullPath = if ([System.IO.Path]::IsPathRooted($Path)) { $Path } else { Join-Path $resolvedRepo $Path }
-        $fullPath = [System.IO.Path]::GetFullPath($fullPath)
 
-        # Validate: path must be within RepoRoot
-        if (-not $fullPath.StartsWith($resolvedRepo)) {
+        $resolvedRepo = $resolvedRepo.Replace('\', '/')
+        $fullPath = [System.IO.Path]::GetFullPath($fullPath).Replace('\', '/')
+
+        # Ensure root has trailing slash for exact directory match
+        $rootCheck = $resolvedRepo
+        if (-not $rootCheck.EndsWith('/')) {
+            $rootCheck += '/'
+        }
+
+        # Validate: path must be within RepoRoot (prevents sibling traversal like /app-backup)
+        if (-not $fullPath.StartsWith($rootCheck, [System.StringComparison]::OrdinalIgnoreCase) -and $fullPath -ne $resolvedRepo) {
             return "WRITE_FAILED: Path '$Path' is outside the repository root"
         }
 
