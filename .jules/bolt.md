@@ -1,0 +1,3 @@
+## 2024-05-24 - [Avoid Array Concatenation Operator in PowerShell Loops]
+**Learning:** Using `+=` to append to an array in PowerShell loops results in severe $O(N^2)$ performance degradation because PowerShell creates a new array and copies all elements on every iteration. This is a critical architectural bottleneck when parsing large output streams like .NET test results or code coverage data.
+**Action:** Always use strongly-typed `[System.Collections.Generic.List[T]]` and `.Add()` for dynamic collection building inside hot loops. Cast the resulting list to an array via `.ToArray()` at the end if required by the function signature or caller expectations.
