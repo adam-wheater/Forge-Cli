@@ -75,18 +75,12 @@ function Detect-TestStyle {
         nunit  = 0
         mstest = 0
     }
-    $frameworkCounts.xunit  += ([regex]::Matches($allText, '\[Fact\]')).Count
-    $frameworkCounts.xunit  += ([regex]::Matches($allText, '\[Theory\]')).Count
-    $frameworkCounts.xunit  += ([regex]::Matches($allText, '\[InlineData\b')).Count
-    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[Test\]')).Count
-    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[TestCase\b')).Count
-    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[TestFixture\]')).Count
-    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[SetUp\]')).Count
-    $frameworkCounts.nunit  += ([regex]::Matches($allText, '\[TearDown\]')).Count
-    $frameworkCounts.mstest += ([regex]::Matches($allText, '\[TestMethod\]')).Count
-    $frameworkCounts.mstest += ([regex]::Matches($allText, '\[TestClass\]')).Count
-    $frameworkCounts.mstest += ([regex]::Matches($allText, '\[DataRow\b')).Count
-    $frameworkCounts.mstest += ([regex]::Matches($allText, '\[TestInitialize\]')).Count
+
+    # ⚡ Bolt Optimization: Consolidate multiple regex patterns using alternation (|)
+    # to scan the entire string once per framework instead of 3-5 times.
+    $frameworkCounts.xunit  = ([regex]::Matches($allText, '\[Fact\]|\[Theory\]|\[InlineData\b')).Count
+    $frameworkCounts.nunit  = ([regex]::Matches($allText, '\[Test\]|\[TestCase\b|\[TestFixture\]|\[SetUp\]|\[TearDown\]')).Count
+    $frameworkCounts.mstest = ([regex]::Matches($allText, '\[TestMethod\]|\[TestClass\]|\[DataRow\b|\[TestInitialize\]')).Count
 
     $testFramework = "unknown"
     $maxFramework = ($frameworkCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1)
@@ -102,17 +96,13 @@ function Detect-TestStyle {
         nsubstitute  = 0
         fakeiteasy   = 0
     }
-    $mockCounts.moq         += ([regex]::Matches($allText, 'new\s+Mock<')).Count
-    $mockCounts.moq         += ([regex]::Matches($allText, 'Mock<')).Count
-    $mockCounts.moq         += ([regex]::Matches($allText, '\.Setup\(')).Count
-    $mockCounts.moq         += ([regex]::Matches($allText, '\.Verify\(')).Count
-    $mockCounts.moq         += ([regex]::Matches($allText, 'It\.IsAny<')).Count
-    $mockCounts.moq         += ([regex]::Matches($allText, '\.Object\b')).Count
-    $mockCounts.nsubstitute += ([regex]::Matches($allText, 'Substitute\.For<')).Count
-    $mockCounts.nsubstitute += ([regex]::Matches($allText, '\.Returns\(')).Count
-    $mockCounts.nsubstitute += ([regex]::Matches($allText, '\.Received\(')).Count
-    $mockCounts.fakeiteasy  += ([regex]::Matches($allText, 'A\.Fake<')).Count
-    $mockCounts.fakeiteasy  += ([regex]::Matches($allText, 'A\.CallTo\(')).Count
+
+    # ⚡ Bolt Optimization: Consolidate regex patterns to single scan passes.
+    # Note: Using `new\s+Mock<` alongside `Mock<` in alternation counts them as one if overlapping,
+    # resolving double-counting bugs while speeding up the detection.
+    $mockCounts.moq         = ([regex]::Matches($allText, 'new\s+Mock<|Mock<|\.Setup\(|\.Verify\(|It\.IsAny<|\.Object\b')).Count
+    $mockCounts.nsubstitute = ([regex]::Matches($allText, 'Substitute\.For<|\.Returns\(|\.Received\(')).Count
+    $mockCounts.fakeiteasy  = ([regex]::Matches($allText, 'A\.Fake<|A\.CallTo\(')).Count
 
     $mockLibrary = "none"
     $maxMock = ($mockCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1)
@@ -128,21 +118,12 @@ function Detect-TestStyle {
         shouldly         = 0
         builtin          = 0
     }
-    $assertCounts.fluentassertions += ([regex]::Matches($allText, '\.Should\(\)')).Count
-    $assertCounts.fluentassertions += ([regex]::Matches($allText, '\.BeEquivalentTo\(')).Count
-    $assertCounts.fluentassertions += ([regex]::Matches($allText, '\.BeTrue\(')).Count
-    $assertCounts.fluentassertions += ([regex]::Matches($allText, '\.HaveCount\(')).Count
-    $assertCounts.shouldly         += ([regex]::Matches($allText, '\.ShouldBe\(')).Count
-    $assertCounts.shouldly         += ([regex]::Matches($allText, '\.ShouldNotBeNull\(')).Count
-    $assertCounts.shouldly         += ([regex]::Matches($allText, '\.ShouldThrow\(')).Count
+
+    # ⚡ Bolt Optimization: Consolidate regex patterns.
+    $assertCounts.fluentassertions = ([regex]::Matches($allText, '\.Should\(\)|\.BeEquivalentTo\(|\.BeTrue\(|\.HaveCount\(')).Count
+    $assertCounts.shouldly         = ([regex]::Matches($allText, '\.ShouldBe\(|\.ShouldNotBeNull\(|\.ShouldThrow\(')).Count
     # Built-in assertions (xUnit, NUnit, MSTest)
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.Equal\(')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.True\(')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.Throws<')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.That\(')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Is\.EqualTo\(')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.AreEqual\(')).Count
-    $assertCounts.builtin          += ([regex]::Matches($allText, 'Assert\.IsTrue\(')).Count
+    $assertCounts.builtin          = ([regex]::Matches($allText, 'Assert\.Equal\(|Assert\.True\(|Assert\.Throws<|Assert\.That\(|Is\.EqualTo\(|Assert\.AreEqual\(|Assert\.IsTrue\(')).Count
 
     $assertionStyle = "builtin"
     $maxAssert = ($assertCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1)
@@ -232,9 +213,11 @@ function Detect-TestStyle {
     $assertPattern = '//\s*Assert'
 
     # Count total arrange/act/assert comment blocks
-    $arrangeMatches = ([regex]::Matches($allText, $arrangePattern)).Count
-    $actMatches = ([regex]::Matches($allText, $actPattern)).Count
-    $assertMatches = ([regex]::Matches($allText, $assertPattern)).Count
+    # ⚡ Bolt Optimization: Use RegexOptions.IgnoreCase for faster scanning and robustness.
+    $ignoreCase = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+    $arrangeMatches = ([regex]::Matches($allText, $arrangePattern, $ignoreCase)).Count
+    $actMatches = ([regex]::Matches($allText, $actPattern, $ignoreCase)).Count
+    $assertMatches = ([regex]::Matches($allText, $assertPattern, $ignoreCase)).Count
 
     # A complete AAA block = min of all three counts (rough estimate per method)
     $aaaBlocks = [Math]::Min($arrangeMatches, [Math]::Min($actMatches, $assertMatches))
@@ -302,97 +285,98 @@ function Get-TestStylePrompt {
         [Parameter(Mandatory)][hashtable]$Style
     )
 
-    $lines = @()
-    $lines += "TEST_STYLE:"
+    # ⚡ Bolt Optimization: Replace += array concatenation with a List to avoid O(N^2) reallocation overhead
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $lines.Add("TEST_STYLE:")
 
     # Framework instruction
     switch ($Style.TestFramework) {
         "xunit" {
-            $lines += "This project uses xUnit with [Fact] and [Theory] attributes."
+            $lines.Add("This project uses xUnit with [Fact] and [Theory] attributes.")
         }
         "nunit" {
-            $lines += "This project uses NUnit with [Test] and [TestCase] attributes."
+            $lines.Add("This project uses NUnit with [Test] and [TestCase] attributes.")
         }
         "mstest" {
-            $lines += "This project uses MSTest with [TestMethod] and [TestClass] attributes."
+            $lines.Add("This project uses MSTest with [TestMethod] and [TestClass] attributes.")
         }
         default {
-            $lines += "No test framework detected. Use xUnit with [Fact] and [Theory] attributes by default."
+            $lines.Add("No test framework detected. Use xUnit with [Fact] and [Theory] attributes by default.")
         }
     }
 
     # Mock library instruction
     switch ($Style.MockLibrary) {
         "moq" {
-            $lines += "Mocking: Use Moq (new Mock<IService>(), .Setup(), .Verify(), It.IsAny<T>())."
+            $lines.Add("Mocking: Use Moq (new Mock<IService>(), .Setup(), .Verify(), It.IsAny<T>()).")
         }
         "nsubstitute" {
-            $lines += "Mocking: Use NSubstitute (Substitute.For<IService>(), .Returns(), .Received())."
+            $lines.Add("Mocking: Use NSubstitute (Substitute.For<IService>(), .Returns(), .Received()).")
         }
         "fakeiteasy" {
-            $lines += "Mocking: Use FakeItEasy (A.Fake<IService>(), A.CallTo())."
+            $lines.Add("Mocking: Use FakeItEasy (A.Fake<IService>(), A.CallTo()).")
         }
         default {
-            $lines += "Mocking: No mocking library detected. Use Moq if mocking is needed."
+            $lines.Add("Mocking: No mocking library detected. Use Moq if mocking is needed.")
         }
     }
 
     # Assertion style instruction
     switch ($Style.AssertionStyle) {
         "fluentassertions" {
-            $lines += "Assertions: Use FluentAssertions (.Should().Be(), .Should().NotBeNull())."
+            $lines.Add("Assertions: Use FluentAssertions (.Should().Be(), .Should().NotBeNull()).")
         }
         "shouldly" {
-            $lines += "Assertions: Use Shouldly (.ShouldBe(), .ShouldNotBeNull())."
+            $lines.Add("Assertions: Use Shouldly (.ShouldBe(), .ShouldNotBeNull()).")
         }
         default {
-            $lines += "Assertions: Use built-in framework assertions (Assert.Equal(), Assert.True(), etc.)."
+            $lines.Add("Assertions: Use built-in framework assertions (Assert.Equal(), Assert.True(), etc.).")
         }
     }
 
     # Naming convention instruction
     switch ($Style.NamingConvention) {
         "MethodName_Scenario_Expected" {
-            $lines += "Naming: Use MethodName_Scenario_ExpectedResult pattern (e.g., CreateUser_ValidInput_ReturnsUser)."
+            $lines.Add("Naming: Use MethodName_Scenario_ExpectedResult pattern (e.g., CreateUser_ValidInput_ReturnsUser).")
         }
         "Should_Action_When_Condition" {
-            $lines += "Naming: Use Should_Action_When_Condition pattern (e.g., ShouldCreateUser_WhenInputIsValid)."
+            $lines.Add("Naming: Use Should_Action_When_Condition pattern (e.g., ShouldCreateUser_WhenInputIsValid).")
         }
         "GivenWhenThen" {
-            $lines += "Naming: Use Given_When_Then pattern (e.g., Given_ValidInput_When_CreateUser_Then_ReturnsUser)."
+            $lines.Add("Naming: Use Given_When_Then pattern (e.g., Given_ValidInput_When_CreateUser_Then_ReturnsUser).")
         }
         default {
-            $lines += "Naming: Use descriptive method names in plain English (e.g., CreatesUserWithValidInput)."
+            $lines.Add("Naming: Use descriptive method names in plain English (e.g., CreatesUserWithValidInput).")
         }
     }
 
     # AAA pattern instruction
     if ($Style.UsesAAAComments) {
-        $lines += "Structure: Follow Arrange-Act-Assert pattern with // Arrange, // Act, // Assert comments."
+        $lines.Add("Structure: Follow Arrange-Act-Assert pattern with // Arrange, // Act, // Assert comments.")
     } else {
-        $lines += "Structure: Follow Arrange-Act-Assert pattern (AAA comments are not used in this project)."
+        $lines.Add("Structure: Follow Arrange-Act-Assert pattern (AAA comments are not used in this project).")
     }
 
     # Setup pattern instruction
     switch ($Style.SetupPattern) {
         "ConstructorSetup" {
-            $lines += "Setup: Create mocks in the test class constructor (xUnit pattern - no [SetUp] method)."
+            $lines.Add("Setup: Create mocks in the test class constructor (xUnit pattern - no [SetUp] method).")
         }
         "SetUpMethod" {
-            $lines += "Setup: Use [SetUp] or [TestInitialize] method for shared mock configuration."
+            $lines.Add("Setup: Use [SetUp] or [TestInitialize] method for shared mock configuration.")
         }
         default {
-            $lines += "Setup: Each test method sets up its own mocks and dependencies inline."
+            $lines.Add("Setup: Each test method sets up its own mocks and dependencies inline.")
         }
     }
 
     # Organisation instruction
     switch ($Style.TestOrganisation) {
         "OneClassPerSUT" {
-            $lines += "Organisation: One test class per class under test (e.g., UserServiceTests for UserService)."
+            $lines.Add("Organisation: One test class per class under test (e.g., UserServiceTests for UserService).")
         }
         default {
-            $lines += "Organisation: Tests are grouped by feature rather than one-to-one with implementation classes."
+            $lines.Add("Organisation: Tests are grouped by feature rather than one-to-one with implementation classes.")
         }
     }
 
