@@ -11,19 +11,26 @@ function Get-ProjectDependencies {
     )
 
     $result = @{
-        ProjectReferences = @()
-        PackageReferences = @()
+        # Performance: Use generic List[T] instead of PowerShell array concatenation (+=) to avoid O(N^2) overhead during dynamic collection building.
+        ProjectReferences = [System.Collections.Generic.List[hashtable]]::new()
+        PackageReferences = [System.Collections.Generic.List[hashtable]]::new()
         ProjectName       = ""
         TargetFramework   = ""
         IsTestProject     = $false
     }
 
-    if (-not (Test-Path $CsprojPath)) {
+    # Performance: Use fast .NET native methods for path and IO instead of PowerShell Cmdlets (Test-Path, Get-Content).
+    if (-not [System.IO.File]::Exists($CsprojPath)) {
         Write-Warning "Get-ProjectDependencies: File '$CsprojPath' not found."
         return $result
     }
 
-    $content = Get-Content $CsprojPath -Raw -ErrorAction SilentlyContinue
+    try {
+        $content = [System.IO.File]::ReadAllText($CsprojPath)
+    } catch {
+        return $result
+    }
+
     if (-not $content) { return $result }
 
     # Extract project name from file path
@@ -40,36 +47,41 @@ function Get-ProjectDependencies {
     foreach ($m in $projRefMatches) {
         $refPath = $m.Groups[1].Value
         # Normalise to forward slashes and extract project name
-        $refPath = $refPath -replace '\\', '/'
+        $refPath = $refPath.Replace('\', '/')
         $refName = [System.IO.Path]::GetFileNameWithoutExtension($refPath)
-        $result.ProjectReferences += @{
+        $result.ProjectReferences.Add(@{
             Path = $refPath
             Name = $refName
-        }
+        })
     }
 
     # Extract PackageReference elements
     $pkgRefPattern = '<PackageReference\s+Include="([^"]+)"(?:\s+Version="([^"]*)")?'
     $pkgRefMatches = [regex]::Matches($content, $pkgRefPattern)
+    # Performance: Use HashSet for fast O(1) existence checks instead of array iteration / filtering.
+    $packageNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($m in $pkgRefMatches) {
         $pkgName = $m.Groups[1].Value
         $pkgVersion = if ($m.Groups[2].Value) { $m.Groups[2].Value } else { "" }
-        $result.PackageReferences += @{
+        $result.PackageReferences.Add(@{
             Name    = $pkgName
             Version = $pkgVersion
-        }
+        })
+        [void]$packageNames.Add($pkgName)
     }
 
     # Detect if this is a test project
-    $packageNames = @($result.PackageReferences | ForEach-Object { $_.Name.ToLower() })
     $isTest = $false
     if ($result.ProjectName -match 'Test' -or $result.ProjectName -match '\.Tests$') {
         $isTest = $true
     }
-    if ($packageNames -match 'xunit' -or $packageNames -match 'nunit' -or $packageNames -match 'mstest\.testframework' -or $packageNames -match 'microsoft\.net\.test\.sdk') {
+    if ($packageNames.Contains('xunit') -or $packageNames.Contains('nunit') -or $packageNames.Contains('mstest.testframework') -or $packageNames.Contains('microsoft.net.test.sdk')) {
         $isTest = $true
     }
     $result.IsTestProject = $isTest
+
+    $result.ProjectReferences = $result.ProjectReferences.ToArray()
+    $result.PackageReferences = $result.PackageReferences.ToArray()
 
     return $result
 }
@@ -81,22 +93,29 @@ function Get-SolutionGraph {
     )
 
     $result = @{
-        Projects        = @()
-        TestProjects    = @()
-        DependencyEdges = @()
+        # Performance: Use generic List[T] instead of PowerShell array concatenation (+=) to avoid O(N^2) overhead during dynamic collection building.
+        Projects        = [System.Collections.Generic.List[hashtable]]::new()
+        TestProjects    = [System.Collections.Generic.List[hashtable]]::new()
+        DependencyEdges = [System.Collections.Generic.List[hashtable]]::new()
         SolutionName    = ""
     }
 
-    if (-not (Test-Path $SolutionPath)) {
+    # Performance: Use fast .NET native methods for path and IO instead of PowerShell Cmdlets (Test-Path, Get-Content).
+    if (-not [System.IO.File]::Exists($SolutionPath)) {
         Write-Warning "Get-SolutionGraph: Solution file '$SolutionPath' not found."
         return $result
     }
 
-    $content = Get-Content $SolutionPath -Raw -ErrorAction SilentlyContinue
+    try {
+        $content = [System.IO.File]::ReadAllText($SolutionPath)
+    } catch {
+        return $result
+    }
+
     if (-not $content) { return $result }
 
     $result.SolutionName = [System.IO.Path]::GetFileNameWithoutExtension($SolutionPath)
-    $solutionDir = Split-Path $SolutionPath -Parent
+    $solutionDir = [System.IO.Path]::GetDirectoryName($SolutionPath)
 
     # Extract project paths from .sln file
     # Format: Project("{GUID}") = "ProjectName", "relative\path\ProjectName.csproj", "{GUID}"
@@ -107,10 +126,10 @@ function Get-SolutionGraph {
 
     foreach ($pm in $projMatches) {
         $projName = $pm.Groups[1].Value
-        $projRelPath = $pm.Groups[2].Value -replace '\\', '/'
-        $projFullPath = Join-Path $solutionDir $projRelPath
+        $projRelPath = $pm.Groups[2].Value.Replace('\', '/')
+        $projFullPath = [System.IO.Path]::Combine($solutionDir, $projRelPath)
 
-        if (-not (Test-Path $projFullPath)) {
+        if (-not [System.IO.File]::Exists($projFullPath)) {
             Write-Warning "Get-SolutionGraph: Project file '$projFullPath' not found, skipping."
             continue
         }
@@ -130,19 +149,23 @@ function Get-SolutionGraph {
         $projectMap[$projName] = $projectInfo
 
         if ($deps.IsTestProject) {
-            $result.TestProjects += $projectInfo
+            $result.TestProjects.Add($projectInfo)
         }
 
-        $result.Projects += $projectInfo
+        $result.Projects.Add($projectInfo)
 
         # Build dependency edges
         foreach ($ref in $deps.ProjectReferences) {
-            $result.DependencyEdges += @{
+            $result.DependencyEdges.Add(@{
                 From = $projName
                 To   = $ref.Name
-            }
+            })
         }
     }
+
+    $result.Projects = $result.Projects.ToArray()
+    $result.TestProjects = $result.TestProjects.ToArray()
+    $result.DependencyEdges = $result.DependencyEdges.ToArray()
 
     return $result
 }
