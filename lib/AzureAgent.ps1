@@ -62,7 +62,7 @@ function Redact-SensitiveData {
 
     # Improved regex to handle quoted strings with spaces and simple key-value pairs
     # Matches: "key": "value" (captures value in group 4) OR key=value (captures value in group 5)
-    return $InputString -replace '(?i)(["'']?(?:api-key|password|secret|token|Authorization)["'']?\s*[:=]\s*)((["''])((?:(?!\3).)*)\3|([^\s,"'']+)?)', '$1$3***$3'
+    return $InputString -replace '(?i)(["'']?(?:api-key|password|secret|token|Authorization)["'']?\s*[:=]\s*)((["''])((?:(?!\3).)*)\3|([^\s,"''&;]+)?)', '$1$3***$3'
 }
 
 # Extract token usage from a response, handling both Chat Completions and Responses API field names.

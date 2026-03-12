@@ -68,8 +68,14 @@ Describe "Redact-SensitiveData" {
         $input = 'Connection string: secret=myvalue; endpoint=...'
         $result = Redact-SensitiveData -InputString $input
 
-        $result | Should -BeLike '*secret=***'
+        $result | Should -BeLike '*secret=***; endpoint=...'
         $result | Should -Not -BeLike '*myvalue*'
+    }
+
+    It "Falls back to regex for tokens in URL query strings" {
+        $input = 'https://example.com?token=12345secret&other=abc'
+        $result = Redact-SensitiveData -InputString $input
+        $result | Should -Be 'https://example.com?token=***&other=abc'
     }
 
     It "Handles null input" {
