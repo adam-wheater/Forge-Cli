@@ -1,0 +1,6 @@
+diff --git a/test.cs b/test.cs
+--- a/test.cs
++++ b/test.cs
+@@ -1 +1 @@
+-old
++new
